@@ -3,17 +3,23 @@
 import { processAlbedo, generateNormalMap, generateRoughnessMap, generateAOMap, generateHeightMap } from './imageUtils.js';
 
 /**
+ * Generate a random Godot 4 UID (lowercase alphanumeric, exactly 14 characters total)
+ */
+function generateUID() {
+    return 'uid://' + Math.random().toString(36).substring(2, 16).padEnd(14, '0');
+}
+
+/**
  * Generate a Godot 4 .tres file string for a StandardMaterial3D.
  */
-function generateTresFile(materialName, albedoName, normalName, roughnessName, aoName, heightName) {
-    const uidSuffix = Math.floor(Math.random() * 1000000);
-    return `[gd_resource type="StandardMaterial3D" load_steps=6 format=3 uid="uid://material_${Date.now()}_${uidSuffix}"]
+function generateTresFile(materialName, basePath, albedoName, normalName, roughnessName, aoName, heightName) {
+    return `[gd_resource type="StandardMaterial3D" load_steps=6 format=3 uid="${generateUID()}"]
 
-[ext_resource type="Texture2D" uid="uid://albedo_${Date.now()}_${uidSuffix}" path="res://${albedoName}" id="1_albedo"]
-[ext_resource type="Texture2D" uid="uid://normal_${Date.now()}_${uidSuffix}" path="res://${normalName}" id="2_normal"]
-[ext_resource type="Texture2D" uid="uid://roughness_${Date.now()}_${uidSuffix}" path="res://${roughnessName}" id="3_roughness"]
-[ext_resource type="Texture2D" uid="uid://ao_${Date.now()}_${uidSuffix}" path="res://${aoName}" id="4_ao"]
-[ext_resource type="Texture2D" uid="uid://height_${Date.now()}_${uidSuffix}" path="res://${heightName}" id="5_height"]
+[ext_resource type="Texture2D" uid="${generateUID()}" path="${basePath}${albedoName}" id="1_albedo"]
+[ext_resource type="Texture2D" uid="${generateUID()}" path="${basePath}${normalName}" id="2_normal"]
+[ext_resource type="Texture2D" uid="${generateUID()}" path="${basePath}${roughnessName}" id="3_roughness"]
+[ext_resource type="Texture2D" uid="${generateUID()}" path="${basePath}${aoName}" id="4_ao"]
+[ext_resource type="Texture2D" uid="${generateUID()}" path="${basePath}${heightName}" id="5_height"]
 
 [resource]
 resource_name = "${materialName}"
@@ -31,7 +37,7 @@ heightmap_texture = ExtResource("5_height")
 /**
  * Export a single material set as a .tres string
  */
-export function exportMaterials(albedoCanvas, normalCanvas, roughnessCanvas, aoCanvas, heightCanvas, materialName, fileName, tresOnly = false) {
+export function exportMaterials(albedoCanvas, normalCanvas, roughnessCanvas, aoCanvas, heightCanvas, materialName, fileName, godotPath, tresOnly = false) {
     const albedoName = `${fileName}_albedo.png`;
     const normalName = `${fileName}_normal.png`;
     const roughnessName = `${fileName}_roughness.png`;
@@ -39,7 +45,7 @@ export function exportMaterials(albedoCanvas, normalCanvas, roughnessCanvas, aoC
     const heightName = `${fileName}_height.png`;
     const tresName = `${fileName}_material.tres`;
 
-    const tresContent = generateTresFile(materialName, albedoName, normalName, roughnessName, aoName, heightName);
+    const tresContent = generateTresFile(materialName, godotPath, albedoName, normalName, roughnessName, aoName, heightName);
 
     if (tresOnly) {
         // Download just the .tres file
@@ -118,7 +124,11 @@ export async function exportBatchMaterials(uploadedFiles, settings) {
 
         const matName = uploadedFiles.length === 1 ? settings.baseName : `${settings.baseName}_${item.name}`;
 
-        const tresContent = generateTresFile(matName, albedoName, normalName, roughnessName, aoName, heightName);
+        // Ensure we handle batch paths correctly. If batch, the files are placed in a subfolder inside the zip.
+        // We append the folder name to the godotPath so Godot maps it perfectly to where the user will drop it.
+        const actualGodotPath = uploadedFiles.length > 1 ? `${settings.godotPath}${item.name}/` : settings.godotPath;
+
+        const tresContent = generateTresFile(matName, actualGodotPath, albedoName, normalName, roughnessName, aoName, heightName);
 
         // Add to zip folder matching base name if multiple, otherwise flat
         const folder = uploadedFiles.length > 1 ? zip.folder(item.name) : zip;

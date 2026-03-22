@@ -19,6 +19,7 @@ const aoStrengthValue = document.getElementById('aoStrengthValue');
 const heightStrength = document.getElementById('heightStrength');
 const heightStrengthValue = document.getElementById('heightStrengthValue');
 const materialNameInput = document.getElementById('materialName');
+const godotPathInput = document.getElementById('godotPath');
 const tilingSelect = document.getElementById('tilingSelect');
 
 // Previews
@@ -95,23 +96,33 @@ function setupEventListeners() {
     btnDownloadCurrentTres.addEventListener('click', () => {
         const activeItem = uploadedFiles[activeFileIndex];
         const baseName = materialNameInput.value.trim() || activeItem.name;
+
+        // Ensure path ends with slash
+        let path = godotPathInput.value.trim() || 'res://';
+        if (!path.endsWith('/')) path += '/';
+
         exportMaterials(
             null, null, null, null, null, // Canvases are null, we export TRES only
             baseName,
             activeItem.name,
+            path,
             true
         );
     });
 }
 
 function getSettings() {
+    let path = godotPathInput.value.trim() || 'res://';
+    if (!path.endsWith('/')) path += '/';
+
     return {
         isSeamless: seamlessToggle.checked,
         normalStrength: parseFloat(normalStrength.value),
         roughnessStrength: parseFloat(roughnessStrength.value),
         aoStrength: parseFloat(aoStrength.value),
         heightStrength: parseFloat(heightStrength.value),
-        baseName: materialNameInput.value.trim() || 'Material'
+        baseName: materialNameInput.value.trim() || 'Material',
+        godotPath: path
     };
 }
 
