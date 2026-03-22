@@ -1,32 +1,46 @@
 // js/main.js
-import { processAlbedo, generateNormalMap } from './imageUtils.js';
-import { exportMaterials } from './godotExporter.js';
+import { processAlbedo, generateNormalMap, generateRoughnessMap, generateAOMap, generateHeightMap } from './imageUtils.js';
+import { exportMaterials, exportBatchMaterials } from './godotExporter.js';
 
 // DOM Elements
 const dropzone = document.getElementById('dropzone');
 const fileInput = document.getElementById('fileInput');
+const fileList = document.getElementById('fileList');
+const fileListUl = document.getElementById('fileListUl');
 
 // Controls
 const seamlessToggle = document.getElementById('seamlessToggle');
 const normalStrength = document.getElementById('normalStrength');
 const normalStrengthValue = document.getElementById('normalStrengthValue');
+const roughnessStrength = document.getElementById('roughnessStrength');
+const roughnessStrengthValue = document.getElementById('roughnessStrengthValue');
+const aoStrength = document.getElementById('aoStrength');
+const aoStrengthValue = document.getElementById('aoStrengthValue');
+const heightStrength = document.getElementById('heightStrength');
+const heightStrengthValue = document.getElementById('heightStrengthValue');
 const materialNameInput = document.getElementById('materialName');
+const tilingSelect = document.getElementById('tilingSelect');
 
 // Previews
 const albedoCanvas = document.getElementById('albedoCanvas');
 const normalCanvas = document.getElementById('normalCanvas');
+const roughnessCanvas = document.getElementById('roughnessCanvas');
+const aoCanvas = document.getElementById('aoCanvas');
+const heightCanvas = document.getElementById('heightCanvas');
+
 const albedoPlaceholder = document.getElementById('albedoPlaceholder');
 const normalPlaceholder = document.getElementById('normalPlaceholder');
+const roughnessPlaceholder = document.getElementById('roughnessPlaceholder');
+const aoPlaceholder = document.getElementById('aoPlaceholder');
+const heightPlaceholder = document.getElementById('heightPlaceholder');
 
 // Buttons
 const btnDownloadZip = document.getElementById('btnDownloadZip');
-const btnDownloadAlbedo = document.getElementById('btnDownloadAlbedo');
-const btnDownloadNormal = document.getElementById('btnDownloadNormal');
-const btnDownloadTres = document.getElementById('btnDownloadTres');
+const btnDownloadCurrentTres = document.getElementById('btnDownloadCurrentTres');
 
 // State
-let originalImage = null;
-let currentFileName = 'texture';
+let uploadedFiles = []; // Array of objects: { file, image, name }
+let activeFileIndex = -1;
 
 // Setup Event Listeners
 function setupEventListeners() {
@@ -45,99 +59,155 @@ function setupEventListeners() {
     dropzone.addEventListener('drop', (e) => {
         e.preventDefault();
         dropzone.classList.remove('dragover');
-        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-            handleFile(e.dataTransfer.files[0]);
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            handleFiles(e.dataTransfer.files);
         }
     });
 
     fileInput.addEventListener('change', (e) => {
-        if (e.target.files && e.target.files[0]) {
-            handleFile(e.target.files[0]);
+        if (e.target.files && e.target.files.length > 0) {
+            handleFiles(e.target.files);
         }
     });
 
     // Control events
     seamlessToggle.addEventListener('change', updateTextures);
+    tilingSelect.addEventListener('change', updateTextures);
 
-    normalStrength.addEventListener('input', (e) => {
-        normalStrengthValue.textContent = e.target.value;
-        if (originalImage) {
-            updateTextures(); // Real-time update
-        }
-    });
+    const bindSlider = (slider, valueDisplay) => {
+        slider.addEventListener('input', (e) => {
+            valueDisplay.textContent = e.target.value;
+            if (activeFileIndex >= 0) updateTextures();
+        });
+    };
+
+    bindSlider(normalStrength, normalStrengthValue);
+    bindSlider(roughnessStrength, roughnessStrengthValue);
+    bindSlider(aoStrength, aoStrengthValue);
+    bindSlider(heightStrength, heightStrengthValue);
 
     // Export buttons
-    btnDownloadAlbedo.addEventListener('click', () => downloadCanvas(albedoCanvas, `${currentFileName}_albedo.png`));
-    btnDownloadNormal.addEventListener('click', () => downloadCanvas(normalCanvas, `${currentFileName}_normal.png`));
-
     btnDownloadZip.addEventListener('click', () => {
+        const settings = getSettings();
+        exportBatchMaterials(uploadedFiles, settings);
+    });
+
+    btnDownloadCurrentTres.addEventListener('click', () => {
+        const activeItem = uploadedFiles[activeFileIndex];
+        const baseName = materialNameInput.value.trim() || activeItem.name;
         exportMaterials(
-            albedoCanvas,
-            normalCanvas,
-            materialNameInput.value.trim() || 'Material',
-            currentFileName
+            null, null, null, null, null, // Canvases are null, we export TRES only
+            baseName,
+            activeItem.name,
+            true
         );
     });
+}
 
-    btnDownloadTres.addEventListener('click', () => {
-        // Just export a tres assuming textures exist nearby
-        exportMaterials(null, null, materialNameInput.value.trim() || 'Material', currentFileName, true);
-    });
+function getSettings() {
+    return {
+        isSeamless: seamlessToggle.checked,
+        normalStrength: parseFloat(normalStrength.value),
+        roughnessStrength: parseFloat(roughnessStrength.value),
+        aoStrength: parseFloat(aoStrength.value),
+        heightStrength: parseFloat(heightStrength.value),
+        baseName: materialNameInput.value.trim() || 'Material'
+    };
 }
 
 // File Handling
-function handleFile(file) {
-    if (!file.type.startsWith('image/')) {
-        alert('Please upload an image file.');
-        return;
+function handleFiles(files) {
+    let loadedCount = 0;
+    const newUploads = [];
+
+    Array.from(files).forEach((file) => {
+        if (!file.type.startsWith('image/')) return;
+
+        const fileName = file.name.replace(/\.[^/.]+$/, "");
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                newUploads.push({ file, image: img, name: fileName });
+                loadedCount++;
+                if (loadedCount === Array.from(files).filter(f => f.type.startsWith('image/')).length) {
+                    uploadedFiles.push(...newUploads);
+                    updateFileList();
+                    if (activeFileIndex === -1 && uploadedFiles.length > 0) {
+                        setActiveFile(0);
+                    }
+                    enableButtons();
+                }
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+function updateFileList() {
+    if (uploadedFiles.length > 0) {
+        fileList.classList.remove('hidden');
     }
 
-    // Extract name without extension
-    currentFileName = file.name.replace(/\.[^/.]+$/, "");
-    materialNameInput.value = currentFileName.charAt(0).toUpperCase() + currentFileName.slice(1);
+    fileListUl.innerHTML = '';
+    uploadedFiles.forEach((item, index) => {
+        const li = document.createElement('li');
+        li.textContent = item.name;
+        if (index === activeFileIndex) {
+            li.classList.add('active');
+        }
+        li.addEventListener('click', () => setActiveFile(index));
+        fileListUl.appendChild(li);
+    });
+}
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        const img = new Image();
-        img.onload = () => {
-            originalImage = img;
-            updateTextures();
-            enableButtons();
-        };
-        img.src = e.target.result;
-    };
-    reader.readAsDataURL(file);
+function setActiveFile(index) {
+    activeFileIndex = index;
+    const item = uploadedFiles[index];
+    materialNameInput.value = item.name.charAt(0).toUpperCase() + item.name.slice(1);
+    updateFileList();
+    updateTextures();
 }
 
 function updateTextures() {
-    if (!originalImage) return;
+    if (activeFileIndex === -1) return;
 
-    const isSeamless = seamlessToggle.checked;
-    const strength = parseFloat(normalStrength.value);
+    const item = uploadedFiles[activeFileIndex];
+    const settings = getSettings();
+    const tiling = parseInt(tilingSelect.value);
 
     // Update Albedo
-    processAlbedo(originalImage, albedoCanvas, isSeamless);
+    processAlbedo(item.image, albedoCanvas, settings.isSeamless, tiling);
     albedoCanvas.style.display = 'block';
     albedoPlaceholder.style.display = 'none';
 
-    // Update Normal
-    generateNormalMap(albedoCanvas, normalCanvas, strength, isSeamless);
+    // We generate the other maps using the 1x Albedo map as source
+    const sourceCanvas = document.createElement('canvas');
+    processAlbedo(item.image, sourceCanvas, settings.isSeamless, 1);
+
+    // Update Maps
+    generateNormalMap(sourceCanvas, normalCanvas, settings.normalStrength, settings.isSeamless, tiling);
     normalCanvas.style.display = 'block';
     normalPlaceholder.style.display = 'none';
+
+    generateRoughnessMap(sourceCanvas, roughnessCanvas, settings.roughnessStrength, settings.isSeamless, tiling);
+    roughnessCanvas.style.display = 'block';
+    roughnessPlaceholder.style.display = 'none';
+
+    generateAOMap(sourceCanvas, aoCanvas, settings.aoStrength, settings.isSeamless, tiling);
+    aoCanvas.style.display = 'block';
+    aoPlaceholder.style.display = 'none';
+
+    generateHeightMap(sourceCanvas, heightCanvas, settings.heightStrength, settings.isSeamless, tiling);
+    heightCanvas.style.display = 'block';
+    heightPlaceholder.style.display = 'none';
 }
 
 function enableButtons() {
     btnDownloadZip.disabled = false;
-    btnDownloadAlbedo.disabled = false;
-    btnDownloadNormal.disabled = false;
-    btnDownloadTres.disabled = false;
-}
-
-function downloadCanvas(canvas, filename) {
-    const link = document.createElement('a');
-    link.download = filename;
-    link.href = canvas.toDataURL('image/png');
-    link.click();
+    btnDownloadCurrentTres.disabled = false;
 }
 
 // Initialize

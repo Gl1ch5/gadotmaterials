@@ -1,9 +1,30 @@
 // js/imageUtils.js
 
+function applyTiling(sourceCanvas, targetCanvas, tiling) {
+    if (tiling <= 1) return;
+
+    const ctx = targetCanvas.getContext('2d');
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = sourceCanvas.width;
+    tempCanvas.height = sourceCanvas.height;
+    const tctx = tempCanvas.getContext('2d');
+    tctx.drawImage(sourceCanvas, 0, 0);
+
+    const pattern = ctx.createPattern(tempCanvas, 'repeat');
+    ctx.clearRect(0, 0, targetCanvas.width, targetCanvas.height);
+
+    // Scale pattern based on tiling
+    const matrix = new DOMMatrix().scale(1 / tiling, 1 / tiling);
+    pattern.setTransform(matrix);
+
+    ctx.fillStyle = pattern;
+    ctx.fillRect(0, 0, targetCanvas.width, targetCanvas.height);
+}
+
 /**
- * Process the base image (Albedo) onto the canvas, optionally making it seamless.
+ * Process the base image (Albedo) onto the canvas, optionally making it seamless and tiling it.
  */
-export function processAlbedo(image, canvas, makeSeamless) {
+export function processAlbedo(image, canvas, makeSeamless, tiling = 1) {
     const ctx = canvas.getContext('2d');
     const width = image.width;
     const height = image.height;
@@ -11,57 +32,79 @@ export function processAlbedo(image, canvas, makeSeamless) {
     canvas.width = width;
     canvas.height = height;
 
-    if (!makeSeamless) {
-        // Draw original image
-        ctx.drawImage(image, 0, 0, width, height);
-        return;
+    let drawSource = image;
+
+    if (makeSeamless) {
+        // Make Seamless logic
+        const halfW = Math.floor(width / 2);
+        const halfH = Math.floor(height / 2);
+
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = width;
+        tempCanvas.height = height;
+        const tctx = tempCanvas.getContext('2d');
+
+        // Draw Offset Image (Backdrop)
+        tctx.drawImage(image, halfW, halfH, width - halfW, height - halfH, 0, 0, width - halfW, height - halfH);
+        tctx.drawImage(image, 0, halfH, halfW, height - halfH, width - halfW, 0, halfW, height - halfH);
+        tctx.drawImage(image, halfW, 0, width - halfW, halfH, 0, height - halfH, width - halfW, halfH);
+        tctx.drawImage(image, 0, 0, halfW, halfH, width - halfW, height - halfH, halfW, halfH);
+
+        // Create Masked Original Image
+        const maskCanvas = document.createElement('canvas');
+        maskCanvas.width = width;
+        maskCanvas.height = height;
+        const mctx = maskCanvas.getContext('2d');
+
+        mctx.drawImage(image, 0, 0, width, height);
+        mctx.globalCompositeOperation = 'destination-in';
+        const gradient = mctx.createRadialGradient(
+            halfW, halfH, Math.min(halfW, halfH) * 0.2,
+            halfW, halfH, Math.min(halfW, halfH) * 0.8
+        );
+        gradient.addColorStop(0, 'rgba(0, 0, 0, 1)');
+        gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        mctx.fillStyle = gradient;
+        mctx.fillRect(0, 0, width, height);
+
+        // Blend
+        tctx.globalCompositeOperation = 'source-over';
+        tctx.drawImage(maskCanvas, 0, 0, width, height);
+
+        drawSource = tempCanvas;
     }
 
-    // Make Seamless logic
-    // Technique: Offset the image by 50% on x and y, then blend the original over the center
-    // using a soft radial gradient mask to hide the hard edges.
+    ctx.drawImage(drawSource, 0, 0, width, height);
+    applyTiling(canvas, canvas, tiling);
+}
 
-    // 1. Draw Offset Image (Backdrop)
-    const halfW = Math.floor(width / 2);
-    const halfH = Math.floor(height / 2);
+/**
+ * Helper to process pixels
+ */
+function processMap(sourceCanvas, targetCanvas, tiling, pixelProcessor) {
+    const width = sourceCanvas.width;
+    const height = sourceCanvas.height;
 
-    // Draw the 4 quadrants flipped around
-    ctx.drawImage(image, halfW, halfH, width - halfW, height - halfH, 0, 0, width - halfW, height - halfH);
-    ctx.drawImage(image, 0, halfH, halfW, height - halfH, width - halfW, 0, halfW, height - halfH);
-    ctx.drawImage(image, halfW, 0, width - halfW, halfH, 0, height - halfH, width - halfW, halfH);
-    ctx.drawImage(image, 0, 0, halfW, halfH, width - halfW, height - halfH, halfW, halfH);
+    targetCanvas.width = width;
+    targetCanvas.height = height;
 
-    // 2. Create Masked Original Image
-    const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = width;
-    tempCanvas.height = height;
-    const tctx = tempCanvas.getContext('2d');
+    const ctx = targetCanvas.getContext('2d');
+    const sourceCtx = sourceCanvas.getContext('2d');
 
-    // Draw original image centered on temp canvas
-    tctx.drawImage(image, 0, 0, width, height);
+    const sourceData = sourceCtx.getImageData(0, 0, width, height);
+    const targetData = ctx.createImageData(width, height);
 
-    // Apply Radial Gradient Mask (Alpha compositing)
-    tctx.globalCompositeOperation = 'destination-in';
-    const gradient = tctx.createRadialGradient(
-        halfW, halfH, Math.min(halfW, halfH) * 0.2, // Inner circle (fully opaque)
-        halfW, halfH, Math.min(halfW, halfH) * 0.8  // Outer circle (fades to transparent)
-    );
-    gradient.addColorStop(0, 'rgba(0, 0, 0, 1)');
-    gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    pixelProcessor(sourceData.data, targetData.data, width, height);
 
-    tctx.fillStyle = gradient;
-    tctx.fillRect(0, 0, width, height);
-
-    // 3. Blend the masked original image over the offset backdrop
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.drawImage(tempCanvas, 0, 0, width, height);
+    ctx.putImageData(targetData, 0, 0);
+    applyTiling(targetCanvas, targetCanvas, tiling);
 }
 
 /**
  * Generate a Normal Map from an input canvas (e.g., Albedo)
  * Uses Sobel operator to find gradients in grayscale and convert to RGB normals.
  */
-export function generateNormalMap(sourceCanvas, targetCanvas, strength = 1.0, isSeamless = false) {
+export function generateNormalMap(sourceCanvas, targetCanvas, strength = 1.0, isSeamless = false, tiling = 1) {
     const width = sourceCanvas.width;
     const height = sourceCanvas.height;
 
@@ -147,4 +190,71 @@ export function generateNormalMap(sourceCanvas, targetCanvas, strength = 1.0, is
     }
 
     ctx.putImageData(targetData, 0, 0);
+    applyTiling(targetCanvas, targetCanvas, tiling);
+}
+
+/**
+ * Generate Roughness Map (Inverted grayscale with contrast)
+ * Roughness is high when dark, low when bright. Often surfaces that are darker (crevices) are rougher.
+ */
+export function generateRoughnessMap(sourceCanvas, targetCanvas, strength = 1.0, isSeamless = false, tiling = 1) {
+    processMap(sourceCanvas, targetCanvas, tiling, (src, dst, w, h) => {
+        for (let i = 0; i < src.length; i += 4) {
+            // Luminance
+            let lum = (src[i] * 0.299 + src[i + 1] * 0.587 + src[i + 2] * 0.114);
+
+            // Invert and apply contrast based on strength
+            // base roughness around 128
+            let r = 255 - lum;
+            r = ((r / 255 - 0.5) * strength + 0.5) * 255;
+            r = Math.max(0, Math.min(255, r));
+
+            dst[i] = r;
+            dst[i + 1] = r;
+            dst[i + 2] = r;
+            dst[i + 3] = 255;
+        }
+    });
+}
+
+/**
+ * Generate Ambient Occlusion (AO) Map
+ * Darkens crevices. We approximate by taking grayscale, blurring slightly, and enhancing contrast to isolate darks.
+ */
+export function generateAOMap(sourceCanvas, targetCanvas, strength = 1.0, isSeamless = false, tiling = 1) {
+    processMap(sourceCanvas, targetCanvas, tiling, (src, dst, w, h) => {
+        for (let i = 0; i < src.length; i += 4) {
+            let lum = (src[i] * 0.299 + src[i + 1] * 0.587 + src[i + 2] * 0.114) / 255.0;
+
+            // Boost whites, crush darks
+            let ao = Math.pow(lum, 1.0 + strength);
+            ao = Math.max(0, Math.min(1, ao)) * 255;
+
+            dst[i] = ao;
+            dst[i + 1] = ao;
+            dst[i + 2] = ao;
+            dst[i + 3] = 255;
+        }
+    });
+}
+
+/**
+ * Generate Height Map
+ * Standard grayscale map where bright is high and dark is low.
+ */
+export function generateHeightMap(sourceCanvas, targetCanvas, strength = 1.0, isSeamless = false, tiling = 1) {
+    processMap(sourceCanvas, targetCanvas, tiling, (src, dst, w, h) => {
+        for (let i = 0; i < src.length; i += 4) {
+            let lum = (src[i] * 0.299 + src[i + 1] * 0.587 + src[i + 2] * 0.114);
+
+            // Adjust depth
+            let height = ((lum / 255 - 0.5) * strength + 0.5) * 255;
+            height = Math.max(0, Math.min(255, height));
+
+            dst[i] = height;
+            dst[i + 1] = height;
+            dst[i + 2] = height;
+            dst[i + 3] = 255;
+        }
+    });
 }
