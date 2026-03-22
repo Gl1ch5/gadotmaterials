@@ -1,5 +1,5 @@
 // js/main.js
-import { processAlbedo, generateNormalMap, generateRoughnessMap, generateAOMap, generateHeightMap } from './imageUtils.js';
+import { processAlbedo, generateNormalMap, generateRoughnessMap, generateAOMap, generateHeightMap, generateMetallicMap } from './imageUtils.js';
 import { exportMaterials, exportBatchMaterials } from './godotExporter.js';
 
 // DOM Elements
@@ -19,9 +19,18 @@ const aoStrength = document.getElementById('aoStrength');
 const aoStrengthValue = document.getElementById('aoStrengthValue');
 const heightStrength = document.getElementById('heightStrength');
 const heightStrengthValue = document.getElementById('heightStrengthValue');
+const metallicStrength = document.getElementById('metallicStrength');
+const metallicStrengthValue = document.getElementById('metallicStrengthValue');
 const materialNameInput = document.getElementById('materialName');
 const btnApplyName = document.getElementById('btnApplyName');
 const tilingSelect = document.getElementById('tilingSelect');
+
+// Toggles
+const toggleNormal = document.getElementById('toggleNormal');
+const toggleRoughness = document.getElementById('toggleRoughness');
+const toggleAO = document.getElementById('toggleAO');
+const toggleHeight = document.getElementById('toggleHeight');
+const toggleMetallic = document.getElementById('toggleMetallic');
 
 // Previews
 const albedoCanvas = document.getElementById('albedoCanvas');
@@ -29,12 +38,14 @@ const normalCanvas = document.getElementById('normalCanvas');
 const roughnessCanvas = document.getElementById('roughnessCanvas');
 const aoCanvas = document.getElementById('aoCanvas');
 const heightCanvas = document.getElementById('heightCanvas');
+const metallicCanvas = document.getElementById('metallicCanvas');
 
 const albedoPlaceholder = document.getElementById('albedoPlaceholder');
 const normalPlaceholder = document.getElementById('normalPlaceholder');
 const roughnessPlaceholder = document.getElementById('roughnessPlaceholder');
 const aoPlaceholder = document.getElementById('aoPlaceholder');
 const heightPlaceholder = document.getElementById('heightPlaceholder');
+const metallicPlaceholder = document.getElementById('metallicPlaceholder');
 
 // Buttons
 const btnDownloadZip = document.getElementById('btnDownloadZip');
@@ -43,6 +54,8 @@ const btnDownloadCurrentTres = document.getElementById('btnDownloadCurrentTres')
 // State
 let uploadedFiles = []; // Array of objects: { file, image, name }
 let activeFileIndex = -1;
+
+import { init3DViewer, update3DMaterial } from './preview3d.js';
 
 // Setup Event Listeners
 function setupEventListeners() {
@@ -80,6 +93,12 @@ function setupEventListeners() {
     // Apply Name logic
     btnApplyName.addEventListener('click', () => {
         if (uploadedFiles.length === 0) return;
+
+        // Add animation
+        btnApplyName.classList.remove('btn-anim-secondary');
+        void btnApplyName.offsetWidth; // trigger reflow
+        btnApplyName.classList.add('btn-anim-secondary');
+
         const baseName = materialNameInput.value.trim() || 'Material';
 
         if (uploadedFiles.length === 1) {
@@ -104,26 +123,42 @@ function setupEventListeners() {
     bindSlider(roughnessStrength, roughnessStrengthValue);
     bindSlider(aoStrength, aoStrengthValue);
     bindSlider(heightStrength, heightStrengthValue);
+    bindSlider(metallicStrength, metallicStrengthValue);
+
+    // Bind Toggles
+    const toggles = [toggleNormal, toggleRoughness, toggleAO, toggleHeight, toggleMetallic];
+    toggles.forEach(t => t.addEventListener('change', () => {
+        if (activeFileIndex >= 0) updateTextures();
+    }));
 
     // Export buttons
     btnDownloadZip.addEventListener('click', () => {
+        btnDownloadZip.classList.remove('btn-anim-primary');
+        void btnDownloadZip.offsetWidth;
+        btnDownloadZip.classList.add('btn-anim-primary');
+
         const settings = getSettings();
         exportBatchMaterials(uploadedFiles, settings);
     });
 
     btnDownloadCurrentTres.addEventListener('click', () => {
+        btnDownloadCurrentTres.classList.remove('btn-anim-secondary');
+        void btnDownloadCurrentTres.offsetWidth;
+        btnDownloadCurrentTres.classList.add('btn-anim-secondary');
+
         const activeItem = uploadedFiles[activeFileIndex];
-        // The material name is now derived directly from the file name, because "Apply" handles renaming
         const matName = activeItem.name;
 
+        // Pass dummy empty objects or nulls, godotExporter only checks truthiness to omit logic for UI vs batch
+        const s = getSettings();
         exportMaterials(
-            null, null, null, null, null, // Canvases are null, we export TRES only
-            matName,
-            activeItem.name,
-            "", // no base path, purely relative
-            true
+            null, null, null, null, null, null,
+            matName, activeItem.name, true, s
         );
     });
+
+    // Init 3D Viewer
+    init3DViewer();
 }
 
 function getSettings() {
@@ -134,8 +169,49 @@ function getSettings() {
         roughnessStrength: parseFloat(roughnessStrength.value),
         aoStrength: parseFloat(aoStrength.value),
         heightStrength: parseFloat(heightStrength.value),
+        metallicStrength: parseFloat(metallicStrength.value),
+        useNormal: toggleNormal.checked,
+        useRoughness: toggleRoughness.checked,
+        useAO: toggleAO.checked,
+        useHeight: toggleHeight.checked,
+        useMetallic: toggleMetallic.checked,
         baseName: materialNameInput.value.trim() || 'Material'
     };
+}
+
+function removeFile(index) {
+    uploadedFiles.splice(index, 1);
+    if (uploadedFiles.length === 0) {
+        activeFileIndex = -1;
+        albedoCanvas.style.display = 'none';
+        normalCanvas.style.display = 'none';
+        roughnessCanvas.style.display = 'none';
+        aoCanvas.style.display = 'none';
+        heightCanvas.style.display = 'none';
+        metallicCanvas.style.display = 'none';
+
+        albedoPlaceholder.style.display = 'block';
+        normalPlaceholder.style.display = 'block';
+        roughnessPlaceholder.style.display = 'block';
+        aoPlaceholder.style.display = 'block';
+        heightPlaceholder.style.display = 'block';
+        metallicPlaceholder.style.display = 'block';
+
+        fileList.classList.add('hidden');
+        btnDownloadZip.disabled = true;
+        btnDownloadCurrentTres.disabled = true;
+
+        // Clear 3D
+        update3DMaterial(null, null, null, null, null, null, null);
+    } else {
+        if (activeFileIndex >= uploadedFiles.length) {
+            activeFileIndex = uploadedFiles.length - 1;
+        } else if (activeFileIndex > index) {
+            activeFileIndex--;
+        }
+        setActiveFile(activeFileIndex);
+    }
+    updateFileList();
 }
 
 // File Handling
@@ -177,7 +253,21 @@ function updateFileList() {
     fileListUl.innerHTML = '';
     uploadedFiles.forEach((item, index) => {
         const li = document.createElement('li');
-        li.textContent = item.name;
+
+        const nameSpan = document.createElement('span');
+        nameSpan.textContent = item.name;
+        li.appendChild(nameSpan);
+
+        const delBtn = document.createElement('button');
+        delBtn.innerHTML = '&times;';
+        delBtn.className = 'delete-btn';
+        delBtn.title = "Remove";
+        delBtn.addEventListener('click', (e) => {
+            e.stopPropagation(); // prevent triggering row click
+            removeFile(index);
+        });
+        li.appendChild(delBtn);
+
         if (index === activeFileIndex) {
             li.classList.add('active');
         }
@@ -210,22 +300,62 @@ function updateTextures() {
     const sourceCanvas = document.createElement('canvas');
     processAlbedo(item.image, sourceCanvas, settings.isSeamless, 1, settings.seamlessAlgorithm);
 
-    // Update Maps
-    generateNormalMap(sourceCanvas, normalCanvas, settings.normalStrength, settings.isSeamless, tiling);
-    normalCanvas.style.display = 'block';
-    normalPlaceholder.style.display = 'none';
+    // Update Maps conditionally based on toggles
+    if (settings.useNormal) {
+        generateNormalMap(sourceCanvas, normalCanvas, settings.normalStrength, settings.isSeamless, tiling);
+        normalCanvas.style.display = 'block';
+        normalPlaceholder.style.display = 'none';
+    } else {
+        normalCanvas.style.display = 'none';
+        normalPlaceholder.style.display = 'block';
+    }
 
-    generateRoughnessMap(sourceCanvas, roughnessCanvas, settings.roughnessStrength, settings.isSeamless, tiling);
-    roughnessCanvas.style.display = 'block';
-    roughnessPlaceholder.style.display = 'none';
+    if (settings.useRoughness) {
+        generateRoughnessMap(sourceCanvas, roughnessCanvas, settings.roughnessStrength, settings.isSeamless, tiling);
+        roughnessCanvas.style.display = 'block';
+        roughnessPlaceholder.style.display = 'none';
+    } else {
+        roughnessCanvas.style.display = 'none';
+        roughnessPlaceholder.style.display = 'block';
+    }
 
-    generateAOMap(sourceCanvas, aoCanvas, settings.aoStrength, settings.isSeamless, tiling);
-    aoCanvas.style.display = 'block';
-    aoPlaceholder.style.display = 'none';
+    if (settings.useAO) {
+        generateAOMap(sourceCanvas, aoCanvas, settings.aoStrength, settings.isSeamless, tiling);
+        aoCanvas.style.display = 'block';
+        aoPlaceholder.style.display = 'none';
+    } else {
+        aoCanvas.style.display = 'none';
+        aoPlaceholder.style.display = 'block';
+    }
 
-    generateHeightMap(sourceCanvas, heightCanvas, settings.heightStrength, settings.isSeamless, tiling);
-    heightCanvas.style.display = 'block';
-    heightPlaceholder.style.display = 'none';
+    if (settings.useHeight) {
+        generateHeightMap(sourceCanvas, heightCanvas, settings.heightStrength, settings.isSeamless, tiling);
+        heightCanvas.style.display = 'block';
+        heightPlaceholder.style.display = 'none';
+    } else {
+        heightCanvas.style.display = 'none';
+        heightPlaceholder.style.display = 'block';
+    }
+
+    if (settings.useMetallic) {
+        generateMetallicMap(sourceCanvas, metallicCanvas, settings.metallicStrength, settings.isSeamless, tiling);
+        metallicCanvas.style.display = 'block';
+        metallicPlaceholder.style.display = 'none';
+    } else {
+        metallicCanvas.style.display = 'none';
+        metallicPlaceholder.style.display = 'block';
+    }
+
+    // Update 3D Preview
+    update3DMaterial(
+        albedoCanvas,
+        settings.useNormal ? normalCanvas : null,
+        settings.useRoughness ? roughnessCanvas : null,
+        settings.useAO ? aoCanvas : null,
+        settings.useHeight ? heightCanvas : null,
+        settings.useMetallic ? metallicCanvas : null,
+        settings
+    );
 }
 
 function enableButtons() {

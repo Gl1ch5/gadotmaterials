@@ -7,6 +7,9 @@
     <link rel="stylesheet" href="style.css">
     <!-- Include JSZip for packaging materials into an archive -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Add Favicon -->
+    <link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l9 4.9V17L12 22l-9-4.9V7z"/><path d="M12 22V12"/><path d="M12 12L2.5 7.5"/><path d="M12 12l9.5-4.5"/></svg>'>
 </head>
 <body>
     <header>
@@ -78,6 +81,11 @@
                         <input type="range" id="heightStrength" min="0" max="2" step="0.1" value="1.0">
                     </div>
 
+                    <div class="control-group slider-group">
+                        <label for="metallicStrength">Metallic Brightness: <span id="metallicStrengthValue">1.0</span></label>
+                        <input type="range" id="metallicStrength" min="0" max="3" step="0.1" value="1.0">
+                    </div>
+
                     <div class="control-group">
                         <label for="materialName">Material Base Name:</label>
                         <div style="display: flex; gap: 0.5rem;">
@@ -108,15 +116,31 @@
                         <label for="tilingSelect">Tiling Preview:</label>
                         <select id="tilingSelect">
                             <option value="1">1x</option>
-                            <option value="2">2x</option>
+                            <option value="2" selected>2x</option>
                             <option value="3">3x</option>
                         </select>
                     </div>
                 </div>
 
+                <div class="preview-3d-section">
+                    <div class="preview-3d-header">
+                        <h3>Interactive 3D Preview</h3>
+                        <select id="geometrySelect">
+                            <option value="cube">Cube</option>
+                            <option value="sphere">Sphere</option>
+                            <option value="plane">Plane</option>
+                        </select>
+                    </div>
+                    <div id="viewer3d" class="viewer-3d">
+                        <div id="viewer3dPlaceholder" class="placeholder">No texture uploaded</div>
+                    </div>
+                </div>
+
                 <div class="maps-grid">
                     <div class="preview-container">
-                        <h3>Albedo (Base Color)</h3>
+                        <div class="map-header">
+                            <h3>Albedo</h3>
+                        </div>
                         <div class="canvas-wrapper">
                             <canvas id="albedoCanvas"></canvas>
                             <div id="albedoPlaceholder" class="placeholder">No texture uploaded</div>
@@ -124,7 +148,9 @@
                     </div>
 
                     <div class="preview-container">
-                        <h3>Normal Map</h3>
+                        <div class="map-header">
+                            <label class="toggle-map"><input type="checkbox" id="toggleNormal" checked> Normal</label>
+                        </div>
                         <div class="canvas-wrapper">
                             <canvas id="normalCanvas"></canvas>
                             <div id="normalPlaceholder" class="placeholder">No texture uploaded</div>
@@ -132,7 +158,9 @@
                     </div>
 
                     <div class="preview-container">
-                        <h3>Roughness Map</h3>
+                        <div class="map-header">
+                            <label class="toggle-map"><input type="checkbox" id="toggleRoughness" checked> Roughness</label>
+                        </div>
                         <div class="canvas-wrapper">
                             <canvas id="roughnessCanvas"></canvas>
                             <div id="roughnessPlaceholder" class="placeholder">No texture uploaded</div>
@@ -140,7 +168,9 @@
                     </div>
 
                     <div class="preview-container">
-                        <h3>Ambient Occlusion (AO)</h3>
+                        <div class="map-header">
+                            <label class="toggle-map"><input type="checkbox" id="toggleAO" checked> AO</label>
+                        </div>
                         <div class="canvas-wrapper">
                             <canvas id="aoCanvas"></canvas>
                             <div id="aoPlaceholder" class="placeholder">No texture uploaded</div>
@@ -148,10 +178,22 @@
                     </div>
 
                     <div class="preview-container">
-                        <h3>Height Map</h3>
+                        <div class="map-header">
+                            <label class="toggle-map"><input type="checkbox" id="toggleHeight" checked> Height</label>
+                        </div>
                         <div class="canvas-wrapper">
                             <canvas id="heightCanvas"></canvas>
                             <div id="heightPlaceholder" class="placeholder">No texture uploaded</div>
+                        </div>
+                    </div>
+
+                    <div class="preview-container">
+                        <div class="map-header">
+                            <label class="toggle-map"><input type="checkbox" id="toggleMetallic"> Metallic</label>
+                        </div>
+                        <div class="canvas-wrapper">
+                            <canvas id="metallicCanvas"></canvas>
+                            <div id="metallicPlaceholder" class="placeholder">No texture uploaded</div>
                         </div>
                     </div>
                 </div>

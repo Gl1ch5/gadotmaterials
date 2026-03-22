@@ -1,47 +1,64 @@
 // js/godotExporter.js
 
-import { processAlbedo, generateNormalMap, generateRoughnessMap, generateAOMap, generateHeightMap } from './imageUtils.js';
+import { processAlbedo, generateNormalMap, generateRoughnessMap, generateAOMap, generateHeightMap, generateMetallicMap } from './imageUtils.js';
 
 /**
- * Generate a Godot 4 .tres file string for a StandardMaterial3D.
+ * Generate a Godot 4 .tres file string for a StandardMaterial3D conditionally including maps.
  * By omitting `uid=` on ext_resources, and using purely relative paths (just the filename),
  * Godot will cleanly import and automatically assign its own internal UIDs.
  */
-function generateTresFile(materialName, albedoName, normalName, roughnessName, aoName, heightName) {
-    return `[gd_resource type="StandardMaterial3D" load_steps=6 format=3]
+function generateTresFile(materialName, albedoName, normalName, roughnessName, aoName, heightName, metallicName, settings) {
+    let extResources = `[ext_resource type="Texture2D" path="${albedoName}" id="1_albedo"]\n`;
+    let properties = `resource_name = "${materialName}"\nalbedo_texture = ExtResource("1_albedo")\n`;
+    let loadSteps = 2; // material + albedo
 
-[ext_resource type="Texture2D" path="${albedoName}" id="1_albedo"]
-[ext_resource type="Texture2D" path="${normalName}" id="2_normal"]
-[ext_resource type="Texture2D" path="${roughnessName}" id="3_roughness"]
-[ext_resource type="Texture2D" path="${aoName}" id="4_ao"]
-[ext_resource type="Texture2D" path="${heightName}" id="5_height"]
+    if (settings.useNormal && normalName) {
+        extResources += `[ext_resource type="Texture2D" path="${normalName}" id="2_normal"]\n`;
+        properties += `normal_enabled = true\nnormal_texture = ExtResource("2_normal")\n`;
+        loadSteps++;
+    }
+    if (settings.useRoughness && roughnessName) {
+        extResources += `[ext_resource type="Texture2D" path="${roughnessName}" id="3_roughness"]\n`;
+        properties += `roughness_texture = ExtResource("3_roughness")\n`;
+        loadSteps++;
+    }
+    if (settings.useAO && aoName) {
+        extResources += `[ext_resource type="Texture2D" path="${aoName}" id="4_ao"]\n`;
+        properties += `ao_enabled = true\nao_texture = ExtResource("4_ao")\n`;
+        loadSteps++;
+    }
+    if (settings.useHeight && heightName) {
+        extResources += `[ext_resource type="Texture2D" path="${heightName}" id="5_height"]\n`;
+        properties += `heightmap_enabled = true\nheightmap_texture = ExtResource("5_height")\n`;
+        loadSteps++;
+    }
+    if (settings.useMetallic && metallicName) {
+        extResources += `[ext_resource type="Texture2D" path="${metallicName}" id="6_metallic"]\n`;
+        properties += `metallic = 1.0\nmetallic_texture = ExtResource("6_metallic")\n`;
+        loadSteps++;
+    }
 
+    return `[gd_resource type="StandardMaterial3D" load_steps=${loadSteps} format=3]
+
+${extResources}
 [resource]
-resource_name = "${materialName}"
-albedo_texture = ExtResource("1_albedo")
-roughness_texture = ExtResource("3_roughness")
-normal_enabled = true
-normal_texture = ExtResource("2_normal")
-ao_enabled = true
-ao_texture = ExtResource("4_ao")
-heightmap_enabled = true
-heightmap_texture = ExtResource("5_height")
-`;
+${properties}`;
 }
 
 /**
  * Export a single material set as a .tres string
  */
-export function exportMaterials(albedoCanvas, normalCanvas, roughnessCanvas, aoCanvas, heightCanvas, materialName, fileName, tresOnly = false) {
+export function exportMaterials(albedoCanvas, normalCanvas, roughnessCanvas, aoCanvas, heightCanvas, metallicCanvas, materialName, fileName, tresOnly = false, settings) {
     const albedoName = `${fileName}_albedo.png`;
     const normalName = `${fileName}_normal.png`;
     const roughnessName = `${fileName}_roughness.png`;
     const aoName = `${fileName}_ao.png`;
     const heightName = `${fileName}_height.png`;
+    const metallicName = `${fileName}_metallic.png`;
     const tresName = `${fileName}_material.tres`;
 
     // Pass just the filenames for purely relative paths.
-    const tresContent = generateTresFile(materialName, albedoName, normalName, roughnessName, aoName, heightName);
+    const tresContent = generateTresFile(materialName, albedoName, normalName, roughnessName, aoName, heightName, metallicName, settings);
 
     if (tresOnly) {
         // Download just the .tres file
@@ -100,22 +117,26 @@ export async function exportBatchMaterials(uploadedFiles, settings) {
 
         // We always generate 1x scale for actual exported textures
         const albedoC = document.createElement('canvas');
+        processAlbedo(item.image, albedoC, settings.isSeamless, 1, settings.seamlessAlgorithm);
+
         const normalC = document.createElement('canvas');
         const roughnessC = document.createElement('canvas');
         const aoC = document.createElement('canvas');
         const heightC = document.createElement('canvas');
+        const metallicC = document.createElement('canvas');
 
-        processAlbedo(item.image, albedoC, settings.isSeamless, 1, settings.seamlessAlgorithm);
-        generateNormalMap(albedoC, normalC, settings.normalStrength, settings.isSeamless, 1);
-        generateRoughnessMap(albedoC, roughnessC, settings.roughnessStrength, settings.isSeamless, 1);
-        generateAOMap(albedoC, aoC, settings.aoStrength, settings.isSeamless, 1);
-        generateHeightMap(albedoC, heightC, settings.heightStrength, settings.isSeamless, 1);
+        if (settings.useNormal) generateNormalMap(albedoC, normalC, settings.normalStrength, settings.isSeamless, 1);
+        if (settings.useRoughness) generateRoughnessMap(albedoC, roughnessC, settings.roughnessStrength, settings.isSeamless, 1);
+        if (settings.useAO) generateAOMap(albedoC, aoC, settings.aoStrength, settings.isSeamless, 1);
+        if (settings.useHeight) generateHeightMap(albedoC, heightC, settings.heightStrength, settings.isSeamless, 1);
+        if (settings.useMetallic) generateMetallicMap(albedoC, metallicC, settings.metallicStrength, settings.isSeamless, 1);
 
         const albedoName = `${item.name}_albedo.png`;
         const normalName = `${item.name}_normal.png`;
         const roughnessName = `${item.name}_roughness.png`;
         const aoName = `${item.name}_ao.png`;
         const heightName = `${item.name}_height.png`;
+        const metallicName = `${item.name}_metallic.png`;
         const tresName = `${item.name}_material.tres`;
 
         // item.name is what we generated in `main.js` from the user's Apply button.
@@ -123,16 +144,17 @@ export async function exportBatchMaterials(uploadedFiles, settings) {
 
         // Since we are creating a zip containing folders matching the material name,
         // the textures and .tres will be side-by-side. Pure relative paths will work fine.
-        const tresContent = generateTresFile(matName, albedoName, normalName, roughnessName, aoName, heightName);
+        const tresContent = generateTresFile(matName, albedoName, normalName, roughnessName, aoName, heightName, metallicName, settings);
 
         // Add to zip folder matching base name if multiple, otherwise flat
         const folder = uploadedFiles.length > 1 ? zip.folder(item.name) : zip;
 
         folder.file(albedoName, albedoC.toDataURL("image/png").split(',')[1], {base64: true});
-        folder.file(normalName, normalC.toDataURL("image/png").split(',')[1], {base64: true});
-        folder.file(roughnessName, roughnessC.toDataURL("image/png").split(',')[1], {base64: true});
-        folder.file(aoName, aoC.toDataURL("image/png").split(',')[1], {base64: true});
-        folder.file(heightName, heightC.toDataURL("image/png").split(',')[1], {base64: true});
+        if (settings.useNormal) folder.file(normalName, normalC.toDataURL("image/png").split(',')[1], {base64: true});
+        if (settings.useRoughness) folder.file(roughnessName, roughnessC.toDataURL("image/png").split(',')[1], {base64: true});
+        if (settings.useAO) folder.file(aoName, aoC.toDataURL("image/png").split(',')[1], {base64: true});
+        if (settings.useHeight) folder.file(heightName, heightC.toDataURL("image/png").split(',')[1], {base64: true});
+        if (settings.useMetallic) folder.file(metallicName, metallicC.toDataURL("image/png").split(',')[1], {base64: true});
         folder.file(tresName, tresContent);
     }
 

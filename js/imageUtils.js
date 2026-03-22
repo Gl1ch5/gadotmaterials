@@ -114,6 +114,40 @@ export function processAlbedo(image, canvas, makeSeamless, tiling = 1, seamlessA
 }
 
 /**
+ * Fast box blur for smoothing noise before generating maps
+ */
+function boxBlur(pixels, width, height, radius) {
+    if (radius < 1) return pixels;
+    const result = new Float32Array(width * height);
+    // Horizontal pass
+    const temp = new Float32Array(width * height);
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            let sum = 0, count = 0;
+            for (let k = -radius; k <= radius; k++) {
+                let px = Math.max(0, Math.min(width - 1, x + k));
+                sum += pixels[y * width + px];
+                count++;
+            }
+            temp[y * width + x] = sum / count;
+        }
+    }
+    // Vertical pass
+    for (let x = 0; x < width; x++) {
+        for (let y = 0; y < height; y++) {
+            let sum = 0, count = 0;
+            for (let k = -radius; k <= radius; k++) {
+                let py = Math.max(0, Math.min(height - 1, y + k));
+                sum += temp[py * width + x];
+                count++;
+            }
+            result[y * width + x] = sum / count;
+        }
+    }
+    return result;
+}
+
+/**
  * Helper to process pixels
  */
 function processMap(sourceCanvas, targetCanvas, tiling, pixelProcessor) {
@@ -157,11 +191,14 @@ export function generateNormalMap(sourceCanvas, targetCanvas, strength = 1.0, is
     const targetPixels = targetData.data;
 
     // Convert to Grayscale (height map approximation)
-    const grayscale = new Float32Array(width * height);
+    let grayscale = new Float32Array(width * height);
     for (let i = 0; i < pixels.length; i += 4) {
         // Luminance formula
         grayscale[i / 4] = (pixels[i] * 0.299 + pixels[i + 1] * 0.587 + pixels[i + 2] * 0.114) / 255.0;
     }
+
+    // Pre-blur to reduce noise
+    grayscale = boxBlur(grayscale, width, height, 1);
 
     // Scharr Operator (3x3 Kernel) - gives better rotational symmetry and smoother results than standard Sobel
     // X Gradient
@@ -257,17 +294,71 @@ export function generateRoughnessMap(sourceCanvas, targetCanvas, strength = 1.0,
  * Darkens crevices. We approximate by taking grayscale, blurring slightly, and enhancing contrast to isolate darks.
  */
 export function generateAOMap(sourceCanvas, targetCanvas, strength = 1.0, isSeamless = false, tiling = 1) {
+    const width = sourceCanvas.width;
+    const height = sourceCanvas.height;
+    targetCanvas.width = width;
+    targetCanvas.height = height;
+
+    const ctx = targetCanvas.getContext('2d');
+    const sourceCtx = sourceCanvas.getContext('2d');
+    const sourceData = sourceCtx.getImageData(0, 0, width, height);
+    const targetData = ctx.createImageData(width, height);
+
+    let grayscale = new Float32Array(width * height);
+    for (let i = 0; i < sourceData.data.length; i += 4) {
+        grayscale[i / 4] = (sourceData.data[i] * 0.299 + sourceData.data[i + 1] * 0.587 + sourceData.data[i + 2] * 0.114) / 255.0;
+    }
+
+    // Heavy blur for AO to emulate wide ambient lighting occlusion
+    grayscale = boxBlur(grayscale, width, height, 3);
+
+    for (let i = 0; i < grayscale.length; i++) {
+        let lum = grayscale[i];
+        let ao = Math.pow(lum, 1.0 + strength);
+        ao = Math.max(0, Math.min(1, ao)) * 255;
+
+        let idx = i * 4;
+        targetData.data[idx] = ao;
+        targetData.data[idx + 1] = ao;
+        targetData.data[idx + 2] = ao;
+        targetData.data[idx + 3] = 255;
+    }
+
+    ctx.putImageData(targetData, 0, 0);
+    applyTiling(targetCanvas, targetCanvas, tiling);
+}
+
+/**
+ * Generate Metallic Map
+ * Metallic surfaces usually have strong highlights. We approximate by finding high luminance/contrast areas.
+ */
+export function generateMetallicMap(sourceCanvas, targetCanvas, strength = 1.0, isSeamless = false, tiling = 1) {
     processMap(sourceCanvas, targetCanvas, tiling, (src, dst, w, h) => {
+        let minLum = 255;
+        let maxLum = 0;
+
         for (let i = 0; i < src.length; i += 4) {
-            let lum = (src[i] * 0.299 + src[i + 1] * 0.587 + src[i + 2] * 0.114) / 255.0;
+            let lum = (src[i] * 0.299 + src[i + 1] * 0.587 + src[i + 2] * 0.114);
+            if (lum < minLum) minLum = lum;
+            if (lum > maxLum) maxLum = lum;
+        }
 
-            // Boost whites, crush darks
-            let ao = Math.pow(lum, 1.0 + strength);
-            ao = Math.max(0, Math.min(1, ao)) * 255;
+        let range = maxLum - minLum;
+        if (range === 0) range = 1;
 
-            dst[i] = ao;
-            dst[i + 1] = ao;
-            dst[i + 2] = ao;
+        for (let i = 0; i < src.length; i += 4) {
+            let lum = (src[i] * 0.299 + src[i + 1] * 0.587 + src[i + 2] * 0.114);
+
+            // Normalize and threshold
+            let normalized = (lum - minLum) / range;
+
+            // Apply strength to curve: higher strength pushes more values towards metallic
+            let metal = Math.pow(normalized, Math.max(0.1, 4.0 - strength)) * 255;
+            metal = Math.max(0, Math.min(255, metal));
+
+            dst[i] = metal;
+            dst[i + 1] = metal;
+            dst[i + 2] = metal;
             dst[i + 3] = 255;
         }
     });
