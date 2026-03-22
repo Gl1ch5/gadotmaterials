@@ -371,6 +371,19 @@ input[type="range"] {
     background-color: var(--bg-color);
 }
 
+.badge {
+    background-color: #e0f2f1;
+    color: #2e7d32;
+    font-size: 0.7rem;
+    padding: 0.1rem 0.4rem;
+    border-radius: 12px;
+    vertical-align: middle;
+    font-family: var(--font-sans);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-left: 0.5rem;
+}
+
 /* Previews */
 .preview-header {
     display: flex;

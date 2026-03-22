@@ -113,7 +113,9 @@ export function update3DMaterial(albedoCanvas, normalCanvas, roughnessCanvas, ao
     // Update Albedo
     disposeTexture(material.map);
     material.map = new THREE.CanvasTexture(albedoCanvas);
-    material.map.colorSpace = THREE.SRGBColorSpace;
+    if (THREE.sRGBEncoding) { // Three.js r128 compatibility
+        material.map.encoding = THREE.sRGBEncoding;
+    }
     material.color.setHex(0xffffff); // Reset base color
 
     // Update Normal

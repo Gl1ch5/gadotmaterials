@@ -34,8 +34,8 @@ export function processAlbedo(image, canvas, makeSeamless, tiling = 1, seamlessA
 
     let drawSource = image;
 
-    if (makeSeamless) {
-        // Make Seamless logic
+    if (makeSeamless && seamlessAlgorithm === "offset") {
+        // Make Seamless logic (Radial/Circular Offset Blend)
         const halfW = Math.floor(width / 2);
         const halfH = Math.floor(height / 2);
 
@@ -72,6 +72,96 @@ export function processAlbedo(image, canvas, makeSeamless, tiling = 1, seamlessA
         tctx.drawImage(maskCanvas, 0, 0, width, height);
 
         drawSource = tempCanvas;
+    } else if (makeSeamless && seamlessAlgorithm === "crossfade") {
+        // Linear crossfade edge blending (horizontal and vertical masks)
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = width;
+        tempCanvas.height = height;
+        const tctx = tempCanvas.getContext('2d');
+
+        // First we draw the standard image
+        tctx.drawImage(image, 0, 0);
+
+        // We create an offset canvas (shifted 50% X and Y)
+        const offsetCanvas = document.createElement('canvas');
+        offsetCanvas.width = width;
+        offsetCanvas.height = height;
+        const octx = offsetCanvas.getContext('2d');
+        const halfW = Math.floor(width / 2);
+        const halfH = Math.floor(height / 2);
+        octx.drawImage(image, halfW, halfH, width - halfW, height - halfH, 0, 0, width - halfW, height - halfH);
+        octx.drawImage(image, 0, halfH, halfW, height - halfH, width - halfW, 0, halfW, height - halfH);
+        octx.drawImage(image, halfW, 0, width - halfW, halfH, 0, height - halfH, width - halfW, halfH);
+        octx.drawImage(image, 0, 0, halfW, halfH, width - halfW, height - halfH, halfW, halfH);
+
+        // We mask the offset image with a diamond or linear cross mask so edges are offset image, center is original
+        octx.globalCompositeOperation = 'destination-in';
+        const linearGradient = octx.createLinearGradient(0, 0, width, 0);
+        linearGradient.addColorStop(0, 'rgba(0, 0, 0, 1)');
+        linearGradient.addColorStop(0.2, 'rgba(0, 0, 0, 0)');
+        linearGradient.addColorStop(0.8, 'rgba(0, 0, 0, 0)');
+        linearGradient.addColorStop(1, 'rgba(0, 0, 0, 1)');
+        octx.fillStyle = linearGradient;
+        octx.fillRect(0, 0, width, height);
+
+        const vLinearGradient = octx.createLinearGradient(0, 0, 0, height);
+        vLinearGradient.addColorStop(0, 'rgba(0, 0, 0, 1)');
+        vLinearGradient.addColorStop(0.2, 'rgba(0, 0, 0, 0)');
+        vLinearGradient.addColorStop(0.8, 'rgba(0, 0, 0, 0)');
+        vLinearGradient.addColorStop(1, 'rgba(0, 0, 0, 1)');
+        octx.globalCompositeOperation = 'source-over'; // draw additive to mask
+        octx.fillStyle = vLinearGradient;
+        octx.fillRect(0, 0, width, height); // wait, this overwrites alpha. We need destination-in for alpha mask.
+
+        // Actually, a simpler way is drawing the original over the offset with a cross mask
+        octx.globalCompositeOperation = 'destination-out';
+        octx.fillRect(0, 0, width, height); // clear center? No, this is getting complex.
+
+        // Let's do the standard approach: Center is Original, Edges are Offset.
+        // We draw Offset first as backdrop.
+        const backdropCanvas = document.createElement('canvas');
+        backdropCanvas.width = width;
+        backdropCanvas.height = height;
+        const bctx = backdropCanvas.getContext('2d');
+        bctx.drawImage(offsetCanvas, 0, 0); // Oops, offsetCanvas alpha is messed up.
+
+        // Redo Offset Backdrop (clean)
+        bctx.drawImage(image, halfW, halfH, width - halfW, height - halfH, 0, 0, width - halfW, height - halfH);
+        bctx.drawImage(image, 0, halfH, halfW, height - halfH, width - halfW, 0, halfW, height - halfH);
+        bctx.drawImage(image, halfW, 0, width - halfW, halfH, 0, height - halfH, width - halfW, halfH);
+        bctx.drawImage(image, 0, 0, halfW, halfH, width - halfW, height - halfH, halfW, halfH);
+
+        // Draw original image on top with a diamond-like mask that is opaque in center and transparent at edges
+        const centerCanvas = document.createElement('canvas');
+        centerCanvas.width = width;
+        centerCanvas.height = height;
+        const cctx = centerCanvas.getContext('2d');
+        cctx.drawImage(image, 0, 0);
+        cctx.globalCompositeOperation = 'destination-in';
+
+        // Radial diamond mask
+        const r1 = cctx.createLinearGradient(0, 0, width, 0);
+        r1.addColorStop(0, "transparent");
+        r1.addColorStop(0.2, "black");
+        r1.addColorStop(0.8, "black");
+        r1.addColorStop(1, "transparent");
+        cctx.fillStyle = r1;
+        cctx.fillRect(0, 0, width, height);
+
+        cctx.globalCompositeOperation = 'destination-in';
+        const r2 = cctx.createLinearGradient(0, 0, 0, height);
+        r2.addColorStop(0, "transparent");
+        r2.addColorStop(0.2, "black");
+        r2.addColorStop(0.8, "black");
+        r2.addColorStop(1, "transparent");
+        cctx.fillStyle = r2;
+        cctx.fillRect(0, 0, width, height);
+
+        // Blend onto backdrop
+        bctx.drawImage(centerCanvas, 0, 0);
+
+        drawSource = backdropCanvas;
+
     } else if (makeSeamless && seamlessAlgorithm === "mirror") {
         const tempCanvas = document.createElement('canvas');
         tempCanvas.width = width * 2;
@@ -148,6 +238,17 @@ function boxBlur(pixels, width, height, radius) {
 }
 
 /**
+ * Multiple box blur passes approximate a Gaussian blur much faster
+ */
+function fastGaussianBlur(pixels, width, height, radius, passes = 3) {
+    let result = pixels;
+    for (let i = 0; i < passes; i++) {
+        result = boxBlur(result, width, height, radius);
+    }
+    return result;
+}
+
+/**
  * Helper to process pixels
  */
 function processMap(sourceCanvas, targetCanvas, tiling, pixelProcessor) {
@@ -197,8 +298,8 @@ export function generateNormalMap(sourceCanvas, targetCanvas, strength = 1.0, is
         grayscale[i / 4] = (pixels[i] * 0.299 + pixels[i + 1] * 0.587 + pixels[i + 2] * 0.114) / 255.0;
     }
 
-    // Pre-blur to reduce noise
-    grayscale = boxBlur(grayscale, width, height, 1);
+    // Aggressive pre-blur to remove high-frequency noise ("мелочи")
+    grayscale = fastGaussianBlur(grayscale, width, height, 2, 2);
 
     // Scharr Operator (3x3 Kernel) - gives better rotational symmetry and smoother results than standard Sobel
     // X Gradient
@@ -309,8 +410,8 @@ export function generateAOMap(sourceCanvas, targetCanvas, strength = 1.0, isSeam
         grayscale[i / 4] = (sourceData.data[i] * 0.299 + sourceData.data[i + 1] * 0.587 + sourceData.data[i + 2] * 0.114) / 255.0;
     }
 
-    // Heavy blur for AO to emulate wide ambient lighting occlusion
-    grayscale = boxBlur(grayscale, width, height, 3);
+    // Heavy Gaussian blur for AO to emulate wide ambient lighting occlusion accurately
+    grayscale = fastGaussianBlur(grayscale, width, height, 5, 3);
 
     for (let i = 0; i < grayscale.length; i++) {
         let lum = grayscale[i];
@@ -384,21 +485,31 @@ export function generateHeightMap(sourceCanvas, targetCanvas, strength = 1.0, is
         let range = maxLum - minLum;
         if (range === 0) range = 1; // prevent div by zero
 
+        // Extract grayscale
+        let grayscale = new Float32Array(src.length / 4);
+        for(let i=0; i<src.length; i+=4) {
+            grayscale[i/4] = src[i] * 0.299 + src[i + 1] * 0.587 + src[i + 2] * 0.114;
+        }
+
+        // Blur heightmap to reduce sharp high-frequency noise
+        grayscale = fastGaussianBlur(grayscale, w, h, 2, 2);
+
         // Pass 2: normalize and apply strength
-        for (let i = 0; i < src.length; i += 4) {
-            let lum = (src[i] * 0.299 + src[i + 1] * 0.587 + src[i + 2] * 0.114);
+        for (let i = 0; i < grayscale.length; i++) {
+            let lum = grayscale[i];
 
             // Normalize to 0-255 based on min/max of the image
             let normalized = ((lum - minLum) / range) * 255;
 
             // Adjust depth
-            let height = ((normalized / 255 - 0.5) * strength + 0.5) * 255;
-            height = Math.max(0, Math.min(255, height));
+            let heightVal = ((normalized / 255 - 0.5) * strength + 0.5) * 255;
+            heightVal = Math.max(0, Math.min(255, heightVal));
 
-            dst[i] = height;
-            dst[i + 1] = height;
-            dst[i + 2] = height;
-            dst[i + 3] = 255;
+            let idx = i * 4;
+            dst[idx] = heightVal;
+            dst[idx + 1] = heightVal;
+            dst[idx + 2] = heightVal;
+            dst[idx + 3] = 255;
         }
     });
 }

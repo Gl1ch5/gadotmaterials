@@ -24,6 +24,9 @@ const metallicStrengthValue = document.getElementById('metallicStrengthValue');
 const materialNameInput = document.getElementById('materialName');
 const btnApplyName = document.getElementById('btnApplyName');
 const tilingSelect = document.getElementById('tilingSelect');
+const btnAITune = document.getElementById('btnAITune');
+const aiDescription = document.getElementById('aiDescription');
+const groqApiKeyInput = document.getElementById('groqApiKey');
 
 // Toggles
 const toggleNormal = document.getElementById('toggleNormal');
@@ -155,6 +158,113 @@ function setupEventListeners() {
             null, null, null, null, null, null,
             matName, activeItem.name, true, s
         );
+    });
+
+    // AI Logic
+    // Load saved API key
+    if (localStorage.getItem('groqApiKey')) {
+        groqApiKeyInput.value = localStorage.getItem('groqApiKey');
+    }
+
+    btnAITune.addEventListener('click', async () => {
+        const desc = aiDescription.value.trim();
+        const apiKey = groqApiKeyInput.value.trim();
+
+        if (!apiKey) {
+            alert("Please enter your Groq API Key first. It will be saved locally.");
+            return;
+        }
+
+        if (!desc) {
+            alert("Please enter a material description first.");
+            return;
+        }
+
+        // Save key
+        localStorage.setItem('groqApiKey', apiKey);
+
+        btnAITune.disabled = true;
+        const originalText = btnAITune.innerHTML;
+        btnAITune.innerHTML = "Thinking...";
+
+        try {
+            const prompt = `You are a PBR material expert configuring a Godot 4 material generator.
+The user uploaded a texture described as: "${desc}".
+
+Respond ONLY with a valid JSON object matching this schema. Do not wrap in markdown blocks, just the raw JSON:
+{
+  "normalStrength": float (0.0 to 5.0, e.g. 1.0 for flat, 4.0 for deep rock/sand),
+  "roughnessStrength": float (0.1 to 3.0. Sand/rock ~1.5. Wood ~1.0),
+  "aoStrength": float (0.0 to 3.0. Cracks/pebbles need more AO ~1.5-2.0),
+  "heightStrength": float (0.0 to 2.0. Flat is 0.0, bumpy is 1.0+),
+  "metallicStrength": float (0.0 to 3.0. If metal, 2.0-3.0. If non-metal, 0.0 or 0.1),
+  "useNormal": boolean,
+  "useRoughness": boolean,
+  "useAO": boolean,
+  "useHeight": boolean,
+  "useMetallic": boolean,
+  "seamlessAlgorithm": string (choose "offset", "crossfade", or "mirror")
+}`;
+
+            const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                },
+                body: JSON.stringify({
+                    model: 'llama-3.3-70b-versatile',
+                    messages: [{ role: 'user', content: prompt }],
+                    temperature: 0.1
+                })
+            });
+
+            if (!response.ok) throw new Error("API Request Failed");
+
+            const data = await response.json();
+            const resultText = data.choices[0].message.content.trim();
+            const config = JSON.parse(resultText);
+
+            // Apply config to UI
+            normalStrength.value = config.normalStrength;
+            normalStrengthValue.textContent = config.normalStrength;
+
+            roughnessStrength.value = config.roughnessStrength;
+            roughnessStrengthValue.textContent = config.roughnessStrength;
+
+            aoStrength.value = config.aoStrength;
+            aoStrengthValue.textContent = config.aoStrength;
+
+            heightStrength.value = config.heightStrength;
+            heightStrengthValue.textContent = config.heightStrength;
+
+            metallicStrength.value = config.metallicStrength;
+            metallicStrengthValue.textContent = config.metallicStrength;
+
+            toggleNormal.checked = config.useNormal;
+            toggleRoughness.checked = config.useRoughness;
+            toggleAO.checked = config.useAO;
+            toggleHeight.checked = config.useHeight;
+            toggleMetallic.checked = config.useMetallic;
+
+            if (config.seamlessAlgorithm) {
+                seamlessAlgorithm.value = config.seamlessAlgorithm;
+            }
+
+            // Animate button
+            btnAITune.classList.remove('btn-anim-secondary');
+            void btnAITune.offsetWidth;
+            btnAITune.classList.add('btn-anim-secondary');
+
+            if (activeFileIndex >= 0) updateTextures();
+
+        } catch (err) {
+            console.error(err);
+            alert("AI Error: Could not generate configuration.");
+        } finally {
+            btnAITune.disabled = false;
+            btnAITune.innerHTML = originalText;
+        }
     });
 
     // Init 3D Viewer
