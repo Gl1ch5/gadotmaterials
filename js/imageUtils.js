@@ -24,7 +24,7 @@ function applyTiling(sourceCanvas, targetCanvas, tiling) {
 /**
  * Process the base image (Albedo) onto the canvas, optionally making it seamless and tiling it.
  */
-export function processAlbedo(image, canvas, makeSeamless, tiling = 1) {
+export function processAlbedo(image, canvas, makeSeamless, tiling = 1, seamlessAlgorithm = "offset") {
     const ctx = canvas.getContext('2d');
     const width = image.width;
     const height = image.height;
@@ -72,6 +72,41 @@ export function processAlbedo(image, canvas, makeSeamless, tiling = 1) {
         tctx.drawImage(maskCanvas, 0, 0, width, height);
 
         drawSource = tempCanvas;
+    } else if (makeSeamless && seamlessAlgorithm === "mirror") {
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = width * 2;
+        tempCanvas.height = height * 2;
+        const tctx = tempCanvas.getContext('2d');
+
+        // Top left (normal)
+        tctx.drawImage(image, 0, 0, width, height);
+
+        // Top right (flip X)
+        tctx.save();
+        tctx.scale(-1, 1);
+        tctx.drawImage(image, -width * 2, 0, width, height);
+        tctx.restore();
+
+        // Bottom left (flip Y)
+        tctx.save();
+        tctx.scale(1, -1);
+        tctx.drawImage(image, 0, -height * 2, width, height);
+        tctx.restore();
+
+        // Bottom right (flip X and Y)
+        tctx.save();
+        tctx.scale(-1, -1);
+        tctx.drawImage(image, -width * 2, -height * 2, width, height);
+        tctx.restore();
+
+        // Draw the 2x mirrored image scaled back to 1x to keep bounds
+        const finalCanvas = document.createElement('canvas');
+        finalCanvas.width = width;
+        finalCanvas.height = height;
+        const fctx = finalCanvas.getContext('2d');
+        fctx.drawImage(tempCanvas, 0, 0, width, height);
+
+        drawSource = finalCanvas;
     }
 
     ctx.drawImage(drawSource, 0, 0, width, height);
@@ -128,18 +163,18 @@ export function generateNormalMap(sourceCanvas, targetCanvas, strength = 1.0, is
         grayscale[i / 4] = (pixels[i] * 0.299 + pixels[i + 1] * 0.587 + pixels[i + 2] * 0.114) / 255.0;
     }
 
-    // Sobel Operator (3x3 Kernel)
+    // Scharr Operator (3x3 Kernel) - gives better rotational symmetry and smoother results than standard Sobel
     // X Gradient
     const sobelX = [
-        [-1, 0, 1],
-        [-2, 0, 2],
-        [-1, 0, 1]
+        [-3, 0, 3],
+        [-10, 0, 10],
+        [-3, 0, 3]
     ];
     // Y Gradient
     const sobelY = [
-        [-1, -2, -1],
-         [0,  0,  0],
-         [1,  2,  1]
+        [-3, -10, -3],
+         [0,   0,  0],
+         [3,  10,  3]
     ];
 
     const getPixel = (x, y) => {
@@ -241,14 +276,32 @@ export function generateAOMap(sourceCanvas, targetCanvas, strength = 1.0, isSeam
 /**
  * Generate Height Map
  * Standard grayscale map where bright is high and dark is low.
+ * Normalizes luminance to 0-255 for better depth.
  */
 export function generateHeightMap(sourceCanvas, targetCanvas, strength = 1.0, isSeamless = false, tiling = 1) {
     processMap(sourceCanvas, targetCanvas, tiling, (src, dst, w, h) => {
+        let minLum = 255;
+        let maxLum = 0;
+
+        // Pass 1: find min/max
+        for (let i = 0; i < src.length; i += 4) {
+            let lum = (src[i] * 0.299 + src[i + 1] * 0.587 + src[i + 2] * 0.114);
+            if (lum < minLum) minLum = lum;
+            if (lum > maxLum) maxLum = lum;
+        }
+
+        let range = maxLum - minLum;
+        if (range === 0) range = 1; // prevent div by zero
+
+        // Pass 2: normalize and apply strength
         for (let i = 0; i < src.length; i += 4) {
             let lum = (src[i] * 0.299 + src[i + 1] * 0.587 + src[i + 2] * 0.114);
 
+            // Normalize to 0-255 based on min/max of the image
+            let normalized = ((lum - minLum) / range) * 255;
+
             // Adjust depth
-            let height = ((lum / 255 - 0.5) * strength + 0.5) * 255;
+            let height = ((normalized / 255 - 0.5) * strength + 0.5) * 255;
             height = Math.max(0, Math.min(255, height));
 
             dst[i] = height;

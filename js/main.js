@@ -10,6 +10,7 @@ const fileListUl = document.getElementById('fileListUl');
 
 // Controls
 const seamlessToggle = document.getElementById('seamlessToggle');
+const seamlessAlgorithm = document.getElementById('seamlessAlgorithm');
 const normalStrength = document.getElementById('normalStrength');
 const normalStrengthValue = document.getElementById('normalStrengthValue');
 const roughnessStrength = document.getElementById('roughnessStrength');
@@ -19,7 +20,7 @@ const aoStrengthValue = document.getElementById('aoStrengthValue');
 const heightStrength = document.getElementById('heightStrength');
 const heightStrengthValue = document.getElementById('heightStrengthValue');
 const materialNameInput = document.getElementById('materialName');
-const godotPathInput = document.getElementById('godotPath');
+const btnApplyName = document.getElementById('btnApplyName');
 const tilingSelect = document.getElementById('tilingSelect');
 
 // Previews
@@ -73,7 +74,24 @@ function setupEventListeners() {
 
     // Control events
     seamlessToggle.addEventListener('change', updateTextures);
+    seamlessAlgorithm.addEventListener('change', updateTextures);
     tilingSelect.addEventListener('change', updateTextures);
+
+    // Apply Name logic
+    btnApplyName.addEventListener('click', () => {
+        if (uploadedFiles.length === 0) return;
+        const baseName = materialNameInput.value.trim() || 'Material';
+
+        if (uploadedFiles.length === 1) {
+            uploadedFiles[0].name = baseName;
+        } else {
+            uploadedFiles.forEach((item, idx) => {
+                item.name = `${baseName}${idx + 1}`;
+            });
+        }
+
+        updateFileList();
+    });
 
     const bindSlider = (slider, valueDisplay) => {
         slider.addEventListener('input', (e) => {
@@ -95,34 +113,28 @@ function setupEventListeners() {
 
     btnDownloadCurrentTres.addEventListener('click', () => {
         const activeItem = uploadedFiles[activeFileIndex];
-        const baseName = materialNameInput.value.trim() || activeItem.name;
-
-        // Ensure path ends with slash
-        let path = godotPathInput.value.trim() || 'res://';
-        if (!path.endsWith('/')) path += '/';
+        // The material name is now derived directly from the file name, because "Apply" handles renaming
+        const matName = activeItem.name;
 
         exportMaterials(
             null, null, null, null, null, // Canvases are null, we export TRES only
-            baseName,
+            matName,
             activeItem.name,
-            path,
+            "", // no base path, purely relative
             true
         );
     });
 }
 
 function getSettings() {
-    let path = godotPathInput.value.trim() || 'res://';
-    if (!path.endsWith('/')) path += '/';
-
     return {
         isSeamless: seamlessToggle.checked,
+        seamlessAlgorithm: seamlessAlgorithm.value,
         normalStrength: parseFloat(normalStrength.value),
         roughnessStrength: parseFloat(roughnessStrength.value),
         aoStrength: parseFloat(aoStrength.value),
         heightStrength: parseFloat(heightStrength.value),
-        baseName: materialNameInput.value.trim() || 'Material',
-        godotPath: path
+        baseName: materialNameInput.value.trim() || 'Material'
     };
 }
 
@@ -190,13 +202,13 @@ function updateTextures() {
     const tiling = parseInt(tilingSelect.value);
 
     // Update Albedo
-    processAlbedo(item.image, albedoCanvas, settings.isSeamless, tiling);
+    processAlbedo(item.image, albedoCanvas, settings.isSeamless, tiling, settings.seamlessAlgorithm);
     albedoCanvas.style.display = 'block';
     albedoPlaceholder.style.display = 'none';
 
     // We generate the other maps using the 1x Albedo map as source
     const sourceCanvas = document.createElement('canvas');
-    processAlbedo(item.image, sourceCanvas, settings.isSeamless, 1);
+    processAlbedo(item.image, sourceCanvas, settings.isSeamless, 1, settings.seamlessAlgorithm);
 
     // Update Maps
     generateNormalMap(sourceCanvas, normalCanvas, settings.normalStrength, settings.isSeamless, tiling);

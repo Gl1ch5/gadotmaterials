@@ -3,23 +3,18 @@
 import { processAlbedo, generateNormalMap, generateRoughnessMap, generateAOMap, generateHeightMap } from './imageUtils.js';
 
 /**
- * Generate a random Godot 4 UID (lowercase alphanumeric, exactly 14 characters total)
- */
-function generateUID() {
-    return 'uid://' + Math.random().toString(36).substring(2, 16).padEnd(14, '0');
-}
-
-/**
  * Generate a Godot 4 .tres file string for a StandardMaterial3D.
+ * By omitting `uid=` on ext_resources, and using purely relative paths (just the filename),
+ * Godot will cleanly import and automatically assign its own internal UIDs.
  */
-function generateTresFile(materialName, basePath, albedoName, normalName, roughnessName, aoName, heightName) {
-    return `[gd_resource type="StandardMaterial3D" load_steps=6 format=3 uid="${generateUID()}"]
+function generateTresFile(materialName, albedoName, normalName, roughnessName, aoName, heightName) {
+    return `[gd_resource type="StandardMaterial3D" load_steps=6 format=3]
 
-[ext_resource type="Texture2D" uid="${generateUID()}" path="${basePath}${albedoName}" id="1_albedo"]
-[ext_resource type="Texture2D" uid="${generateUID()}" path="${basePath}${normalName}" id="2_normal"]
-[ext_resource type="Texture2D" uid="${generateUID()}" path="${basePath}${roughnessName}" id="3_roughness"]
-[ext_resource type="Texture2D" uid="${generateUID()}" path="${basePath}${aoName}" id="4_ao"]
-[ext_resource type="Texture2D" uid="${generateUID()}" path="${basePath}${heightName}" id="5_height"]
+[ext_resource type="Texture2D" path="${albedoName}" id="1_albedo"]
+[ext_resource type="Texture2D" path="${normalName}" id="2_normal"]
+[ext_resource type="Texture2D" path="${roughnessName}" id="3_roughness"]
+[ext_resource type="Texture2D" path="${aoName}" id="4_ao"]
+[ext_resource type="Texture2D" path="${heightName}" id="5_height"]
 
 [resource]
 resource_name = "${materialName}"
@@ -37,7 +32,7 @@ heightmap_texture = ExtResource("5_height")
 /**
  * Export a single material set as a .tres string
  */
-export function exportMaterials(albedoCanvas, normalCanvas, roughnessCanvas, aoCanvas, heightCanvas, materialName, fileName, godotPath, tresOnly = false) {
+export function exportMaterials(albedoCanvas, normalCanvas, roughnessCanvas, aoCanvas, heightCanvas, materialName, fileName, tresOnly = false) {
     const albedoName = `${fileName}_albedo.png`;
     const normalName = `${fileName}_normal.png`;
     const roughnessName = `${fileName}_roughness.png`;
@@ -45,7 +40,8 @@ export function exportMaterials(albedoCanvas, normalCanvas, roughnessCanvas, aoC
     const heightName = `${fileName}_height.png`;
     const tresName = `${fileName}_material.tres`;
 
-    const tresContent = generateTresFile(materialName, godotPath, albedoName, normalName, roughnessName, aoName, heightName);
+    // Pass just the filenames for purely relative paths.
+    const tresContent = generateTresFile(materialName, albedoName, normalName, roughnessName, aoName, heightName);
 
     if (tresOnly) {
         // Download just the .tres file
@@ -109,7 +105,7 @@ export async function exportBatchMaterials(uploadedFiles, settings) {
         const aoC = document.createElement('canvas');
         const heightC = document.createElement('canvas');
 
-        processAlbedo(item.image, albedoC, settings.isSeamless, 1);
+        processAlbedo(item.image, albedoC, settings.isSeamless, 1, settings.seamlessAlgorithm);
         generateNormalMap(albedoC, normalC, settings.normalStrength, settings.isSeamless, 1);
         generateRoughnessMap(albedoC, roughnessC, settings.roughnessStrength, settings.isSeamless, 1);
         generateAOMap(albedoC, aoC, settings.aoStrength, settings.isSeamless, 1);
@@ -122,13 +118,12 @@ export async function exportBatchMaterials(uploadedFiles, settings) {
         const heightName = `${item.name}_height.png`;
         const tresName = `${item.name}_material.tres`;
 
-        const matName = uploadedFiles.length === 1 ? settings.baseName : `${settings.baseName}_${item.name}`;
+        // item.name is what we generated in `main.js` from the user's Apply button.
+        const matName = item.name;
 
-        // Ensure we handle batch paths correctly. If batch, the files are placed in a subfolder inside the zip.
-        // We append the folder name to the godotPath so Godot maps it perfectly to where the user will drop it.
-        const actualGodotPath = uploadedFiles.length > 1 ? `${settings.godotPath}${item.name}/` : settings.godotPath;
-
-        const tresContent = generateTresFile(matName, actualGodotPath, albedoName, normalName, roughnessName, aoName, heightName);
+        // Since we are creating a zip containing folders matching the material name,
+        // the textures and .tres will be side-by-side. Pure relative paths will work fine.
+        const tresContent = generateTresFile(matName, albedoName, normalName, roughnessName, aoName, heightName);
 
         // Add to zip folder matching base name if multiple, otherwise flat
         const folder = uploadedFiles.length > 1 ? zip.folder(item.name) : zip;
