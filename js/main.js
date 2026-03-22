@@ -11,6 +11,10 @@ const fileListUl = document.getElementById('fileListUl');
 // Controls
 const seamlessToggle = document.getElementById('seamlessToggle');
 const seamlessAlgorithm = document.getElementById('seamlessAlgorithm');
+const removeBgToggle = document.getElementById('removeBgToggle');
+const removeBgMode = document.getElementById('removeBgMode');
+const removeBgTolerance = document.getElementById('removeBgTolerance');
+const removeBgToleranceValue = document.getElementById('removeBgToleranceValue');
 const normalStrength = document.getElementById('normalStrength');
 const normalStrengthValue = document.getElementById('normalStrengthValue');
 const roughnessStrength = document.getElementById('roughnessStrength');
@@ -57,7 +61,29 @@ const btnDownloadCurrentTres = document.getElementById('btnDownloadCurrentTres')
 let uploadedFiles = []; // Array of objects: { file, image, name }
 let activeFileIndex = -1;
 
+// Tabs Logic
+function setupTabs() {
+    const tabBtns = document.querySelectorAll('.tab-btn');
+    const tabContents = document.querySelectorAll('.tab-content');
+
+    tabBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            // Remove active class
+            tabBtns.forEach(b => b.classList.remove('active'));
+            tabContents.forEach(c => c.classList.remove('active'));
+
+            // Add active class to clicked tab
+            btn.classList.add('active');
+            const targetId = btn.getAttribute('data-tab');
+            document.getElementById(targetId).classList.add('active');
+        });
+    });
+}
+setupTabs();
+
 import { init3DViewer, update3DMaterial } from './preview3d.js';
+import { initParticles } from './particles.js';
+import { initShaders } from './shaders.js';
 
 // Setup Event Listeners
 function setupEventListeners() {
@@ -90,6 +116,12 @@ function setupEventListeners() {
     // Control events
     seamlessToggle.addEventListener('change', updateTextures);
     seamlessAlgorithm.addEventListener('change', updateTextures);
+    removeBgToggle.addEventListener('change', updateTextures);
+    removeBgMode.addEventListener('change', updateTextures);
+    removeBgTolerance.addEventListener('input', () => {
+        removeBgToleranceValue.textContent = removeBgTolerance.value;
+        updateTextures();
+    });
     tilingSelect.addEventListener('change', updateTextures);
 
     // Apply Name logic
@@ -275,6 +307,9 @@ function getSettings() {
     return {
         isSeamless: seamlessToggle.checked,
         seamlessAlgorithm: seamlessAlgorithm.value,
+        removeBg: removeBgToggle.checked,
+        removeBgMode: removeBgMode.value,
+        removeBgTolerance: parseInt(removeBgTolerance.value),
         normalStrength: parseFloat(normalStrength.value),
         roughnessStrength: parseFloat(roughnessStrength.value),
         aoStrength: parseFloat(aoStrength.value),
@@ -402,13 +437,13 @@ function updateTextures() {
     const tiling = parseInt(tilingSelect.value);
 
     // Update Albedo
-    processAlbedo(item.image, albedoCanvas, settings.isSeamless, tiling, settings.seamlessAlgorithm);
+    processAlbedo(item.image, albedoCanvas, settings.isSeamless, tiling, settings.seamlessAlgorithm, settings.removeBg, settings.removeBgMode, settings.removeBgTolerance);
     albedoCanvas.style.display = 'block';
     albedoPlaceholder.style.display = 'none';
 
     // We generate the other maps using the 1x Albedo map as source
     const sourceCanvas = document.createElement('canvas');
-    processAlbedo(item.image, sourceCanvas, settings.isSeamless, 1, settings.seamlessAlgorithm);
+    processAlbedo(item.image, sourceCanvas, settings.isSeamless, 1, settings.seamlessAlgorithm, settings.removeBg, settings.removeBgMode, settings.removeBgTolerance);
 
     // Update Maps conditionally based on toggles
     if (settings.useNormal) {
@@ -482,3 +517,6 @@ if (groqKeyInput) {
     });
 }
 setupEventListeners();
+
+initParticles();
+initShaders();

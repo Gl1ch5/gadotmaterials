@@ -24,7 +24,7 @@ function applyTiling(sourceCanvas, targetCanvas, tiling) {
 /**
  * Process the base image (Albedo) onto the canvas, optionally making it seamless and tiling it.
  */
-export function processAlbedo(image, canvas, makeSeamless, tiling = 1, seamlessAlgorithm = "offset") {
+export function processAlbedo(image, canvas, makeSeamless, tiling = 1, seamlessAlgorithm = "offset", removeBg = false, removeBgMode = "white", removeBgTolerance = 20) {
     const ctx = canvas.getContext('2d');
     const width = image.width;
     const height = image.height;
@@ -200,7 +200,53 @@ export function processAlbedo(image, canvas, makeSeamless, tiling = 1, seamlessA
     }
 
     ctx.drawImage(drawSource, 0, 0, width, height);
+
+    if (removeBg) {
+        applyBackgroundRemoval(ctx, width, height, removeBgMode, removeBgTolerance);
+    }
+
     applyTiling(canvas, canvas, tiling);
+}
+
+function applyBackgroundRemoval(ctx, width, height, mode, tolerance) {
+    const imageData = ctx.getImageData(0, 0, width, height);
+    const data = imageData.data;
+
+    for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        const a = data[i + 3];
+
+        if (a === 0) continue;
+
+        let diff;
+        if (mode === "white") {
+            // Distance from white
+            diff = Math.max(255 - r, 255 - g, 255 - b);
+        } else {
+            // Distance from black
+            diff = Math.max(r, g, b);
+        }
+
+        // Convert tolerance percentage (0-100) to pixel diff (0-255)
+        const threshold = (tolerance / 100) * 255;
+
+        if (diff <= threshold) {
+            // Smooth alpha falloff near the threshold
+            if (threshold > 0) {
+                const alphaFactor = diff / threshold; // 0 at perfect match, 1 at edge of threshold
+                data[i + 3] = Math.min(a, Math.floor(alphaFactor * 255));
+            } else {
+                data[i + 3] = 0; // Absolute removal
+            }
+
+            // Premultiply RGB by new alpha to avoid fringing artifacts in some cases,
+            // but for canvas we just modify alpha.
+        }
+    }
+
+    ctx.putImageData(imageData, 0, 0);
 }
 
 /**

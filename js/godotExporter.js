@@ -38,6 +38,10 @@ function generateTresFile(materialName, albedoName, normalName, roughnessName, a
         loadSteps++;
     }
 
+    if (settings.removeBg) {
+        properties += `transparency = 2\nalpha_scissor_threshold = 0.5\nalpha_antialiasing_mode = 0\n`;
+    }
+
     return `[gd_resource type="StandardMaterial3D" load_steps=${loadSteps} format=3]
 
 ${extResources}
@@ -117,7 +121,7 @@ export async function exportBatchMaterials(uploadedFiles, settings) {
 
         // We always generate 1x scale for actual exported textures
         const albedoC = document.createElement('canvas');
-        processAlbedo(item.image, albedoC, settings.isSeamless, 1, settings.seamlessAlgorithm);
+        processAlbedo(item.image, albedoC, settings.isSeamless, 1, settings.seamlessAlgorithm, settings.removeBg, settings.removeBgMode, settings.removeBgTolerance);
 
         const normalC = document.createElement('canvas');
         const roughnessC = document.createElement('canvas');
