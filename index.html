@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Godot Material Generator</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Include JSZip for packaging materials into an archive -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <svg class="logo" viewBox="0 0 24 24" width="32" height="32" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2l9 4.9V17L12 22l-9-4.9V7z"/>
+                <path d="M12 22V12"/>
+                <path d="M12 12L2.5 7.5"/>
+                <path d="M12 12l9.5-4.5"/>
+            </svg>
+            <h1>MaterialGen for Godot</h1>
+        </div>
+        <p class="subtitle">Create Albedo & Normal maps and export ready-to-use .tres materials instantly.</p>
+    </header>
+
+    <main>
+        <div class="layout-container">
+            <!-- Left Column: Upload & Controls -->
+            <div class="panel controls-panel">
+                <div class="section upload-section">
+                    <div id="dropzone" class="dropzone">
+                        <svg class="upload-icon" viewBox="0 0 24 24" width="48" height="48" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="17 8 12 3 7 8"/>
+                            <line x1="12" y1="3" x2="12" y2="15"/>
+                        </svg>
+                        <p>Drag & Drop texture here</p>
+                        <p class="small">or click to browse</p>
+                        <input type="file" id="fileInput" accept="image/*" hidden>
+                    </div>
+                </div>
+
+                <div class="section settings-section">
+                    <h3>Settings</h3>
+
+                    <div class="control-group checkbox-group">
+                        <label class="custom-checkbox">
+                            <input type="checkbox" id="seamlessToggle">
+                            <span class="checkmark"></span>
+                            Make Seamless (Tileable)
+                        </label>
+                    </div>
+
+                    <div class="control-group slider-group">
+                        <label for="normalStrength">Normal Map Strength: <span id="normalStrengthValue">1.0</span></label>
+                        <input type="range" id="normalStrength" min="0" max="5" step="0.1" value="1.0">
+                    </div>
+
+                    <div class="control-group">
+                        <label for="materialName">Material Name:</label>
+                        <input type="text" id="materialName" value="Material">
+                    </div>
+                </div>
+
+                <div class="section actions-section">
+                    <h3>Export</h3>
+                    <div class="button-group">
+                        <button id="btnDownloadZip" class="btn btn-primary" disabled>
+                            <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                            Download Full ZIP (Textures + .tres)
+                        </button>
+                        <button id="btnDownloadAlbedo" class="btn btn-secondary" disabled>Download Albedo Map</button>
+                        <button id="btnDownloadNormal" class="btn btn-secondary" disabled>Download Normal Map</button>
+                        <button id="btnDownloadTres" class="btn btn-secondary" disabled>Download .tres only</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Previews -->
+            <div class="panel preview-panel">
+                <div class="preview-container">
+                    <h3>Albedo (Base Color)</h3>
+                    <div class="canvas-wrapper">
+                        <canvas id="albedoCanvas"></canvas>
+                        <div id="albedoPlaceholder" class="placeholder">No texture uploaded</div>
+                    </div>
+                </div>
+
+                <div class="preview-container">
+                    <h3>Normal Map</h3>
+                    <div class="canvas-wrapper">
+                        <canvas id="normalCanvas"></canvas>
+                        <div id="normalPlaceholder" class="placeholder">No texture uploaded</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <p>Created for Godot Engine developers.</p>
+    </footer>
+
+    <!-- Modules -->
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>
