@@ -26,13 +26,15 @@
     </header>
 
     <main>
+
         <nav class="tabs-nav">
-            <button class="tab-btn active" data-tab="materials">Materials</button>
-            <button class="tab-btn" data-tab="decals">Decals</button>
-            <button class="tab-btn" data-tab="foliage">Foliage</button>
-            <button class="tab-btn" data-tab="particles">Particles</button>
-            <button class="tab-btn" data-tab="shaders">Shaders</button>
+            <a href="index.html" class="tab-btn active" id="nav-materials" style="text-decoration: none; color: inherit;">Materials</a>
+            <a href="decals.html" class="tab-btn" id="nav-decals" style="text-decoration: none; color: inherit;">Decals</a>
+            <a href="foliage.html" class="tab-btn" id="nav-foliage" style="text-decoration: none; color: inherit;">Foliage</a>
+            <a href="particles.html" class="tab-btn" id="nav-particles" style="text-decoration: none; color: inherit;">Particles</a>
+            <a href="shaders.html" class="tab-btn" id="nav-shaders" style="text-decoration: none; color: inherit;">Shaders</a>
         </nav>
+
 
         <div id="materials" class="tab-content active">
             <div class="layout-container">
@@ -247,47 +249,13 @@
             </div>
         </div>
 
-        <div id="decals" class="tab-content">
-            <div class="panel" style="text-align: center; padding: 4rem;">
-                <h2>Decals Generator</h2>
-                <p>Use the Background Removal tool in the Materials tab to prepare alpha cutout textures. A decal is simply a StandardMaterial3D (or specific Decal node resource) with transparency. We plan to add specific Decal node exporters here soon!</p>
-            </div>
-        </div>
 
-        <div id="foliage" class="tab-content">
-            <div class="panel" style="text-align: center; padding: 4rem;">
-                <h2>Foliage & Grass</h2>
-                <p>Use the Materials tab with "Remove Background" toggled ON to generate your Base PBR Foliage material. In the future, we will provide a specialized Godot Shader for wind sway here.</p>
-            </div>
-        </div>
 
-        <div id="particles" class="tab-content">
-            <div class="panel" style="padding: 2rem;">
-                <h2>Particle Systems (AI)</h2>
-                <p>Describe your effect (e.g., "Explosion with gravity" or "Magic spark trail") to generate a Godot ParticleProcessMaterial .tres file using AI.</p>
-                <textarea id="particlesPrompt" rows="4" style="width: 100%; margin: 1rem 0; padding: 0.5rem; border-radius: var(--radius); border: 1px solid var(--border-color); resize: vertical;" placeholder="e.g. A slow burning fire with smoke rising upwards, using red and orange colors..."></textarea>
-                <button id="btnGenerateParticles" class="btn btn-primary">Generate Particle Material</button>
-                <p id="particlesStatus" style="margin-top: 1rem; color: var(--text-muted);"></p>
-                <div style="margin-top: 2rem;">
-                    <textarea id="particlesOutput" rows="15" style="width: 100%; padding: 0.5rem; border-radius: var(--radius); border: 1px solid var(--border-color); font-family: monospace; background: var(--bg-color);" readonly placeholder="Resulting .tres file will appear here..."></textarea>
-                    <button id="btnDownloadParticles" class="btn" style="margin-top: 1rem; display: none;">Download .tres</button>
-                </div>
-            </div>
-        </div>
 
-        <div id="shaders" class="tab-content">
-            <div class="panel" style="padding: 2rem;">
-                <h2>Shader Generator (AI)</h2>
-                <p>Describe the visual effect (e.g., "Water distortion with chromatic aberration") to generate raw .gdshader code.</p>
-                <textarea id="shadersPrompt" rows="4" style="width: 100%; margin: 1rem 0; padding: 0.5rem; border-radius: var(--radius); border: 1px solid var(--border-color); resize: vertical;" placeholder="e.g. A spatial shader for Godot 4 that creates a glowing outline effect and pulses over time..."></textarea>
-                <button id="btnGenerateShader" class="btn btn-primary">Generate .gdshader</button>
-                <p id="shadersStatus" style="margin-top: 1rem; color: var(--text-muted);"></p>
-                <div style="margin-top: 2rem;">
-                    <textarea id="shadersOutput" rows="15" style="width: 100%; padding: 0.5rem; border-radius: var(--radius); border: 1px solid var(--border-color); font-family: monospace; background: var(--bg-color);" readonly placeholder="Resulting .gdshader code will appear here..."></textarea>
-                    <button id="btnDownloadShader" class="btn" style="margin-top: 1rem; display: none;">Download .gdshader</button>
-                </div>
-            </div>
-        </div>
+
+
+
+
     </main>
 
     <footer>

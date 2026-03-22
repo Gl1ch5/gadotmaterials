@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Godot Material Generator</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Include JSZip for packaging materials into an archive -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Add Favicon -->
+    <link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l9 4.9V17L12 22l-9-4.9V7z"/><path d="M12 22V12"/><path d="M12 12L2.5 7.5"/><path d="M12 12l9.5-4.5"/></svg>'>
+</head>
+<body>
+
+    <header>
+        <div class="header-content">
+            <svg class="logo" viewBox="0 0 24 24" width="32" height="32" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2l9 4.9V17L12 22l-9-4.9V7z"/>
+                <path d="M12 22V12"/>
+                <path d="M12 12L2.5 7.5"/>
+                <path d="M12 12l9.5-4.5"/>
+            </svg>
+            <h1>MaterialGen for Godot</h1>
+        </div>
+        <p class="subtitle">Prepare alpha cutout textures for Godot Decals.</p>
+    </header>
+    <main>
+
+        <nav class="tabs-nav">
+            <a href="index.html" class="tab-btn " id="nav-materials" style="text-decoration: none; color: inherit;">Materials</a>
+            <a href="decals.html" class="tab-btn active" id="nav-decals" style="text-decoration: none; color: inherit;">Decals</a>
+            <a href="foliage.html" class="tab-btn " id="nav-foliage" style="text-decoration: none; color: inherit;">Foliage</a>
+            <a href="particles.html" class="tab-btn " id="nav-particles" style="text-decoration: none; color: inherit;">Particles</a>
+            <a href="shaders.html" class="tab-btn " id="nav-shaders" style="text-decoration: none; color: inherit;">Shaders</a>
+        </nav>
+
+<div id="decals" class="tab-content active" style="display: block;">
+            <div class="panel" style="text-align: center; padding: 4rem;">
+                <h2>Decals Generator</h2>
+                <p>Use the Background Removal tool in the Materials tab to prepare alpha cutout textures. A decal is simply a StandardMaterial3D (or specific Decal node resource) with transparency. We plan to add specific Decal node exporters here soon!</p>
+            </div>
+        </div>
+    </main>
+    <footer>
+        <p>Created for Godot Engine developers.</p>
+    </footer>
+
+
+</body>
+</html>

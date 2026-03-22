@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Godot Material Generator</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Include JSZip for packaging materials into an archive -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Add Favicon -->
+    <link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l9 4.9V17L12 22l-9-4.9V7z"/><path d="M12 22V12"/><path d="M12 12L2.5 7.5"/><path d="M12 12l9.5-4.5"/></svg>'>
+</head>
+<body>
+
+    <header>
+        <div class="header-content">
+            <svg class="logo" viewBox="0 0 24 24" width="32" height="32" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2l9 4.9V17L12 22l-9-4.9V7z"/>
+                <path d="M12 22V12"/>
+                <path d="M12 12L2.5 7.5"/>
+                <path d="M12 12l9.5-4.5"/>
+            </svg>
+            <h1>MaterialGen for Godot</h1>
+        </div>
+        <p class="subtitle">Generate ParticleProcessMaterial from 2D Sprites using AI.</p>
+    </header>
+    <main>
+
+        <nav class="tabs-nav">
+            <a href="index.html" class="tab-btn " id="nav-materials" style="text-decoration: none; color: inherit;">Materials</a>
+            <a href="decals.html" class="tab-btn " id="nav-decals" style="text-decoration: none; color: inherit;">Decals</a>
+            <a href="foliage.html" class="tab-btn " id="nav-foliage" style="text-decoration: none; color: inherit;">Foliage</a>
+            <a href="particles.html" class="tab-btn active" id="nav-particles" style="text-decoration: none; color: inherit;">Particles</a>
+            <a href="shaders.html" class="tab-btn " id="nav-shaders" style="text-decoration: none; color: inherit;">Shaders</a>
+        </nav>
+
+<div id="particles" class="tab-content active" style="display: block;">
+            <div class="layout-container">
+                <!-- Left Column: Settings -->
+                <div class="panel controls-panel">
+                    <h2>Particle System Generator</h2>
+                    <p>Generate a Godot <code>GPUParticles3D</code> ready package from a 2D spritesheet using AI.</p>
+
+                    <div class="section upload-section" style="margin-top: 2rem;">
+                        <label>1. Upload Sprite/Spritesheet</label>
+                        <div class="upload-area" id="dropZoneParticles" style="margin-top: 0.5rem;">
+                            <input type="file" id="particleFileInput" accept="image/*" style="display: none;">
+                            <svg viewBox="0 0 24 24" width="32" height="32" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 0.5rem;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                            <p>Drag & Drop sprite here<br><span class="small-text">or click to browse</span></p>
+                        </div>
+                        <img id="particlePreviewImg" style="display: none; max-width: 100%; margin-top: 1rem; border-radius: var(--radius); border: 1px solid var(--border-color);" />
+                    </div>
+
+                    <div class="section settings-section">
+                        <label>2. Spritesheet Layout (for Animation)</label>
+                        <div style="display: flex; gap: 1rem; margin-top: 0.5rem;">
+                            <div class="control-group" style="flex: 1;">
+                                <label for="hFrames">Horizontal Frames (H-Frames):</label>
+                                <input type="number" id="hFrames" min="1" value="1" style="width: 100%; padding: 0.5rem;">
+                            </div>
+                            <div class="control-group" style="flex: 1;">
+                                <label for="vFrames">Vertical Frames (V-Frames):</label>
+                                <input type="number" id="vFrames" min="1" value="1" style="width: 100%; padding: 0.5rem;">
+                            </div>
+                        </div>
+                        <p class="small-text">How many individual frames are in your image? (e.g. 8x8 for a 64-frame fire animation). Leave as 1x1 for single sprites.</p>
+                    </div>
+
+                    <div class="section ai-section">
+                        <label>3. AI Prompt (Effect Description)</label>
+                        <textarea id="particlesPrompt" rows="4" style="width: 100%; margin-top: 0.5rem; padding: 0.5rem; border-radius: var(--radius); border: 1px solid var(--border-color); resize: vertical;" placeholder="e.g. A fast-moving stream of magical fire particles moving upwards with high gravity..."></textarea>
+
+                        <div style="margin-top: 1rem;">
+                            <label>Groq API Key (Required)</label>
+                            <input type="password" id="groqApiKeyParticles" placeholder="gsk_..." style="width: 100%; padding: 0.5rem; margin-top: 0.5rem;">
+                        </div>
+                    </div>
+
+                    <button id="btnGenerateParticles" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">Generate Particle Package (ZIP)</button>
+                    <p id="particlesStatus" style="margin-top: 1rem; color: var(--text-muted); font-size: 0.9rem;"></p>
+                </div>
+
+                <!-- Right Column: Results -->
+                <div class="panel preview-panel">
+                    <h2>Generated Particle Process Material (.tres)</h2>
+                    <textarea id="particlesOutput" style="width: 100%; height: 600px; padding: 1rem; border-radius: var(--radius); border: 1px solid var(--border-color); font-family: monospace; background: var(--bg-color); font-size: 0.85rem;" readonly placeholder="Generated Godot resource code will appear here..."></textarea>
+                </div>
+            </div>
+        </div>
+    </main>
+    <footer>
+        <p>Created for Godot Engine developers.</p>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <!-- Modules -->
+    <script type="module" src="js/particles_page.js"></script>
+</body>
+</html>

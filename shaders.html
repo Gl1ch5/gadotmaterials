@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Godot Material Generator</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Include JSZip for packaging materials into an archive -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Add Favicon -->
+    <link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l9 4.9V17L12 22l-9-4.9V7z"/><path d="M12 22V12"/><path d="M12 12L2.5 7.5"/><path d="M12 12l9.5-4.5"/></svg>'>
+</head>
+<body>
+
+    <header>
+        <div class="header-content">
+            <svg class="logo" viewBox="0 0 24 24" width="32" height="32" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2l9 4.9V17L12 22l-9-4.9V7z"/>
+                <path d="M12 22V12"/>
+                <path d="M12 12L2.5 7.5"/>
+                <path d="M12 12l9.5-4.5"/>
+            </svg>
+            <h1>MaterialGen for Godot</h1>
+        </div>
+        <p class="subtitle">Generate raw .gdshader code using AI.</p>
+    </header>
+    <main>
+
+        <nav class="tabs-nav">
+            <a href="index.html" class="tab-btn " id="nav-materials" style="text-decoration: none; color: inherit;">Materials</a>
+            <a href="decals.html" class="tab-btn " id="nav-decals" style="text-decoration: none; color: inherit;">Decals</a>
+            <a href="foliage.html" class="tab-btn " id="nav-foliage" style="text-decoration: none; color: inherit;">Foliage</a>
+            <a href="particles.html" class="tab-btn " id="nav-particles" style="text-decoration: none; color: inherit;">Particles</a>
+            <a href="shaders.html" class="tab-btn active" id="nav-shaders" style="text-decoration: none; color: inherit;">Shaders</a>
+        </nav>
+
+<div id="shaders" class="tab-content active" style="display: block;">
+            <div class="panel" style="padding: 2rem;">
+                <h2>Shader Generator (AI)</h2>
+                <p>Describe the visual effect (e.g., "Water distortion with chromatic aberration") to generate raw .gdshader code.</p>
+                <textarea id="shadersPrompt" rows="4" style="width: 100%; margin: 1rem 0; padding: 0.5rem; border-radius: var(--radius); border: 1px solid var(--border-color); resize: vertical;" placeholder="e.g. A spatial shader for Godot 4 that creates a glowing outline effect and pulses over time..."></textarea>
+                <button id="btnGenerateShader" class="btn btn-primary">Generate .gdshader</button>
+                <p id="shadersStatus" style="margin-top: 1rem; color: var(--text-muted);"></p>
+                <div style="margin-top: 2rem;">
+                    <textarea id="shadersOutput" rows="15" style="width: 100%; padding: 0.5rem; border-radius: var(--radius); border: 1px solid var(--border-color); font-family: monospace; background: var(--bg-color);" readonly placeholder="Resulting .gdshader code will appear here..."></textarea>
+                    <button id="btnDownloadShader" class="btn" style="margin-top: 1rem; display: none;">Download .gdshader</button>
+                </div>
+            </div>
+        </div>
+    </main>
+    <footer>
+        <p>Created for Godot Engine developers.</p>
+    </footer>
+
+    <!-- Modules -->
+    <script type="module" src="js/shaders_page.js"></script>
+</body>
+</html>

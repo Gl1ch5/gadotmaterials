@@ -61,29 +61,9 @@ const btnDownloadCurrentTres = document.getElementById('btnDownloadCurrentTres')
 let uploadedFiles = []; // Array of objects: { file, image, name }
 let activeFileIndex = -1;
 
-// Tabs Logic
-function setupTabs() {
-    const tabBtns = document.querySelectorAll('.tab-btn');
-    const tabContents = document.querySelectorAll('.tab-content');
-
-    tabBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            // Remove active class
-            tabBtns.forEach(b => b.classList.remove('active'));
-            tabContents.forEach(c => c.classList.remove('active'));
-
-            // Add active class to clicked tab
-            btn.classList.add('active');
-            const targetId = btn.getAttribute('data-tab');
-            document.getElementById(targetId).classList.add('active');
-        });
-    });
-}
-setupTabs();
+// Tabs Logic is now handled by multi-page routing via simple anchor tags.
 
 import { init3DViewer, update3DMaterial } from './preview3d.js';
-import { initParticles } from './particles.js';
-import { initShaders } from './shaders.js';
 
 // Setup Event Listeners
 function setupEventListeners() {
@@ -517,6 +497,3 @@ if (groqKeyInput) {
     });
 }
 setupEventListeners();
-
-initParticles();
-initShaders();
