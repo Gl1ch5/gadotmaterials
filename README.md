@@ -17,7 +17,7 @@ A powerful, entirely client-side web application designed to instantly generate 
 
 ## 🚀 Getting Started
 
-1. Visit the hosted GitHub Pages URL.
+1. Visit the web app: **[https://gl1ch5.github.io/gadotmaterials/](https://gl1ch5.github.io/gadotmaterials/)**
 2. Drag and drop your source textures.
 3. Use the AI Auto-Tune or manually adjust sliders to perfect your material.
 4. Click "Download All as ZIP" and extract the contents directly into your Godot project.
@@ -41,7 +41,7 @@ A powerful, entirely client-side web application designed to instantly generate 
 
 ## 🚀 Как начать
 
-1. Откройте сайт (GitHub Pages).
+1. Откройте веб-приложение: **[https://gl1ch5.github.io/gadotmaterials/](https://gl1ch5.github.io/gadotmaterials/)**
 2. Перетащите исходные текстуры.
 3. Используйте ИИ (Auto-Tune) или вручную настройте ползунки.
 4. Нажмите "Скачать все в ZIP" и распакуйте архив прямо в проект Godot.
