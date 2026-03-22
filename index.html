@@ -30,6 +30,12 @@
             <!-- Left Column: Upload & Controls -->
             <div class="panel controls-panel">
                 <div class="section upload-section">
+                    <div class="settings-group" style="margin-bottom: var(--spacing-lg);">
+                        <label style="display: block; font-weight: 500; margin-bottom: 8px;">Groq API Key (Required for AI)</label>
+                        <input type="password" id="groq-api-key" placeholder="gsk_..." style="width: 100%; padding: var(--spacing-sm); border: 1px solid var(--border-color); border-radius: 4px; box-sizing: border-box;">
+                        <small style="color: var(--text-secondary); display: block; margin-top: 5px;">Your key is saved locally in your browser. Get yours free at <a href="https://console.groq.com/keys" target="_blank" style="color: var(--primary-color);">console.groq.com</a></small>
+                    </div>
+
                     <div id="dropzone" class="dropzone">
                         <svg class="upload-icon" viewBox="0 0 24 24" width="48" height="48" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -50,7 +56,6 @@
                     <h3>AI Auto-Tune <span class="badge">New</span></h3>
                     <p class="small-text" style="margin-bottom: 0.5rem;">Describe the material (e.g., "desert sand", "rusty metal") and AI will configure the perfect PBR maps and strengths for you.</p>
                     <div style="display: flex; flex-direction: column; gap: 0.5rem;">
-                        <input type="password" id="groqApiKey" placeholder="Enter Groq API Key (gsk_...)" style="font-size: 0.85rem; padding: 0.5rem;">
                         <div style="display: flex; gap: 0.5rem;">
                             <input type="text" id="aiDescription" placeholder="What is this texture?">
                             <button id="btnAITune" class="btn btn-secondary" style="padding: 0.5rem; font-size: 0.9rem; min-width: 100px;">

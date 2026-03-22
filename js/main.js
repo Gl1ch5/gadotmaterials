@@ -26,7 +26,6 @@ const btnApplyName = document.getElementById('btnApplyName');
 const tilingSelect = document.getElementById('tilingSelect');
 const btnAITune = document.getElementById('btnAITune');
 const aiDescription = document.getElementById('aiDescription');
-const groqApiKeyInput = document.getElementById('groqApiKey');
 
 // Toggles
 const toggleNormal = document.getElementById('toggleNormal');
@@ -161,17 +160,12 @@ function setupEventListeners() {
     });
 
     // AI Logic
-    // Load saved API key
-    if (localStorage.getItem('groqApiKey')) {
-        groqApiKeyInput.value = localStorage.getItem('groqApiKey');
-    }
-
     btnAITune.addEventListener('click', async () => {
         const desc = aiDescription.value.trim();
-        const apiKey = groqApiKeyInput.value.trim();
+        const apiKey = localStorage.getItem('groqApiKey');
 
         if (!apiKey) {
-            alert("Please enter your Groq API Key first. It will be saved locally.");
+            alert("Please configure your Groq API key in the settings first.");
             return;
         }
 
@@ -179,9 +173,6 @@ function setupEventListeners() {
             alert("Please enter a material description first.");
             return;
         }
-
-        // Save key
-        localStorage.setItem('groqApiKey', apiKey);
 
         btnAITune.disabled = true;
         const originalText = btnAITune.innerHTML;
@@ -474,4 +465,11 @@ function enableButtons() {
 }
 
 // Initialize
+const groqKeyInput = document.getElementById('groq-api-key');
+if (groqKeyInput) {
+    groqKeyInput.value = localStorage.getItem('groqApiKey') || '';
+    groqKeyInput.addEventListener('input', (e) => {
+        localStorage.setItem('groqApiKey', e.target.value);
+    });
+}
 setupEventListeners();
