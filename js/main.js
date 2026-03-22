@@ -210,10 +210,19 @@ Respond ONLY with a valid JSON object matching this schema. Do not wrap in markd
                 })
             });
 
-            if (!response.ok) throw new Error("API Request Failed");
+            if (!response.ok) {
+                const errorData = await response.text();
+                throw new Error(`API Request Failed: ${response.status} ${errorData}`);
+            }
 
             const data = await response.json();
-            const resultText = data.choices[0].message.content.trim();
+            let resultText = data.choices[0].message.content.trim();
+            // Try to extract JSON if it was wrapped in markdown by mistake
+            if (resultText.startsWith("```json")) {
+                resultText = resultText.replace(/^```json/, "").replace(/```$/, "").trim();
+            } else if (resultText.startsWith("```")) {
+                resultText = resultText.replace(/^```/, "").replace(/```$/, "").trim();
+            }
             const config = JSON.parse(resultText);
 
             // Apply config to UI
@@ -251,7 +260,7 @@ Respond ONLY with a valid JSON object matching this schema. Do not wrap in markd
 
         } catch (err) {
             console.error(err);
-            alert("AI Error: Could not generate configuration.");
+            alert("AI Error: Could not generate configuration. " + err.message);
         } finally {
             btnAITune.disabled = false;
             btnAITune.innerHTML = originalText;
