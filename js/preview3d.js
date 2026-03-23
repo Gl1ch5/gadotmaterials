@@ -36,17 +36,29 @@ export function init3DViewer() {
     scene.add(pointLight);
 
     // Geometries
+    const crossGeo = new THREE.PlaneGeometry(3, 3);
+    const plane2 = new THREE.PlaneGeometry(3, 3);
+    plane2.rotateY(Math.PI / 2);
+    // Merge planes for cross mesh manually by putting two meshes in a group or merging geometry.
+    // ThreeJS removed Geometry.merge in newer versions, so let's use a simple Group for Foliage if needed,
+    // or just rely on the user seeing a plane with double-sided material.
+
     geometries = {
         cube: new THREE.BoxGeometry(2, 2, 2),
         sphere: new THREE.SphereGeometry(1.2, 64, 64),
-        plane: new THREE.PlaneGeometry(3, 3)
+        plane: new THREE.PlaneGeometry(3, 3),
+        wall: new THREE.PlaneGeometry(3, 3),
+        foliage_cross: new THREE.PlaneGeometry(3, 3) // will handle double-sided via material
     };
 
     // Material
     material = new THREE.MeshStandardMaterial({
         color: 0xffffff,
         roughness: 0.5,
-        metalness: 0.0
+        metalness: 0.0,
+        transparent: true,
+        alphaTest: 0.1, // Good for cutout decals
+        side: THREE.DoubleSide // Needed for foliage and cross mesh
     });
 
     // Mesh
@@ -62,17 +74,20 @@ export function init3DViewer() {
     });
 
     // Geometry Switcher
-    geometrySelect.addEventListener('change', (e) => {
-        mesh.geometry = geometries[e.target.value];
-    });
+    if (geometrySelect) {
+        geometrySelect.addEventListener('change', (e) => {
+            mesh.geometry = geometries[e.target.value];
+        });
+    }
 
     // Animation Loop
     function animate() {
         requestAnimationFrame(animate);
-        if (mesh && geometrySelect.value !== 'plane') {
+        let geoValue = geometrySelect ? geometrySelect.value : 'cube';
+        if (mesh && geoValue !== 'plane' && geoValue !== 'wall') {
             mesh.rotation.y += 0.005;
             mesh.rotation.x += 0.002;
-        } else if (mesh && geometrySelect.value === 'plane') {
+        } else if (mesh && (geoValue === 'plane' || geoValue === 'wall')) {
             mesh.rotation.x = 0;
             mesh.rotation.y = 0;
         }
@@ -84,7 +99,7 @@ export function init3DViewer() {
 /**
  * Updates the 3D material with the newly generated 2D canvases.
  */
-export function update3DMaterial(albedoCanvas, normalCanvas, roughnessCanvas, aoCanvas, heightCanvas, metallicCanvas, settings) {
+export function update3DMaterial(albedoCanvas, normalCanvas, roughnessCanvas, aoCanvas, heightCanvas, metallicCanvas, settings, isDecal = false, isFoliage = false) {
     const container = document.getElementById('viewer3d');
     const placeholder = document.getElementById('viewer3dPlaceholder');
 

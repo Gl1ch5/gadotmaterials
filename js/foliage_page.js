@@ -1,7 +1,7 @@
 import { initI18n } from "./i18n.js";
-// js/main.js
+// js/foliage_page.js
 import { processAlbedo, generateNormalMap, generateRoughnessMap, generateAOMap, generateHeightMap, generateMetallicMap } from './imageUtils.js';
-import { exportMaterials, exportBatchMaterials } from './godotExporter.js';
+import { exportFoliage, exportBatchFoliage } from './godotExporter.js';
 
 // DOM Elements
 const dropzone = document.getElementById('dropzone');
@@ -104,6 +104,13 @@ function setupEventListeners() {
         updateTextures();
     });
     tilingSelect.addEventListener('change', updateTextures);
+    if (foliageMode) foliageMode.addEventListener('change', updateTextures);
+    const geometrySelect = document.getElementById('geometrySelect');
+    if (geometrySelect) {
+        geometrySelect.addEventListener('change', (e) => {
+            // let 3dviewer handle this natively via ID listener but force update if needed
+        });
+    }
 
     // Apply Name logic
     btnApplyName.addEventListener('click', () => {
@@ -153,7 +160,7 @@ function setupEventListeners() {
         btnDownloadZip.classList.add('btn-anim-primary');
 
         const settings = getSettings();
-        exportBatchMaterials(uploadedFiles, settings);
+        exportBatchFoliage(uploadedFiles, settings);
     });
 
     btnDownloadCurrentTres.addEventListener('click', () => {
@@ -166,7 +173,7 @@ function setupEventListeners() {
 
         // Pass dummy empty objects or nulls, godotExporter only checks truthiness to omit logic for UI vs batch
         const s = getSettings();
-        exportMaterials(
+        exportFoliage(
             null, null, null, null, null, null,
             matName, activeItem.name, true, s
         );
@@ -301,7 +308,8 @@ function getSettings() {
         useAO: toggleAO.checked,
         useHeight: toggleHeight.checked,
         useMetallic: toggleMetallic.checked,
-        baseName: materialNameInput.value.trim() || 'Material'
+        baseName: materialNameInput.value.trim() || 'Material',
+        foliageMode: foliageMode ? foliageMode.value : 'cross'
     };
 }
 
@@ -480,7 +488,9 @@ function updateTextures() {
         settings.useAO ? aoCanvas : null,
         settings.useHeight ? heightCanvas : null,
         settings.useMetallic ? metallicCanvas : null,
-        settings
+        settings,
+        false, // not decal
+        true   // is foliage
     );
 }
 

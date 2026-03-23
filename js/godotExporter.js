@@ -52,6 +52,49 @@ ${properties}`;
 /**
  * Export a single material set as a .tres string
  */
+function generateFoliageTresFile(materialName, albedoName, normalName, roughnessName, aoName, heightName, metallicName, settings) {
+    let extResources = `[ext_resource type="Texture2D" path="${albedoName}" id="1_albedo"]\n`;
+    let properties = `resource_name = "${materialName}"\nalbedo_texture = ExtResource("1_albedo")\n`;
+    let loadSteps = 2; // material + albedo
+
+    // Foliage specific settings
+    properties += `transparency = 2\nalpha_scissor_threshold = 0.5\nalpha_antialiasing_mode = 0\n`;
+
+    if (settings.foliageMode === 'billboard') {
+        properties += `billboard_mode = 2\nbillboard_keep_scale = true\n`;
+    } else {
+        properties += `cull_mode = 2\n`; // double-sided cross mesh
+    }
+
+    if (settings.useNormal && normalName) {
+        extResources += `[ext_resource type="Texture2D" path="${normalName}" id="2_normal"]\n`;
+        properties += `normal_enabled = true\nnormal_texture = ExtResource("2_normal")\n`;
+        loadSteps++;
+    }
+    if (settings.useRoughness && roughnessName) {
+        extResources += `[ext_resource type="Texture2D" path="${roughnessName}" id="3_roughness"]\n`;
+        properties += `roughness_texture = ExtResource("3_roughness")\n`;
+        loadSteps++;
+    }
+    if (settings.useAO && aoName) {
+        extResources += `[ext_resource type="Texture2D" path="${aoName}" id="4_ao"]\n`;
+        properties += `ao_enabled = true\nao_texture = ExtResource("4_ao")\n`;
+        loadSteps++;
+    }
+    if (settings.useHeight && heightName) {
+        extResources += `[ext_resource type="Texture2D" path="${heightName}" id="5_height"]\n`;
+        properties += `heightmap_enabled = true\nheightmap_texture = ExtResource("5_height")\n`;
+        loadSteps++;
+    }
+    if (settings.useMetallic && metallicName) {
+        extResources += `[ext_resource type="Texture2D" path="${metallicName}" id="6_metallic"]\n`;
+        properties += `metallic = 1.0\nmetallic_texture = ExtResource("6_metallic")\n`;
+        loadSteps++;
+    }
+
+    return `[gd_resource type="StandardMaterial3D" load_steps=${loadSteps} format=3]\n\n${extResources}\n[resource]\n${properties}`;
+}
+
 export function exportMaterials(albedoCanvas, normalCanvas, roughnessCanvas, aoCanvas, heightCanvas, metallicCanvas, materialName, fileName, tresOnly = false, settings) {
     const albedoName = `${fileName}_albedo.png`;
     const normalName = `${fileName}_normal.png`;
@@ -111,6 +154,106 @@ export function exportMaterials(albedoCanvas, normalCanvas, roughnessCanvas, aoC
 /**
  * Batch export materials from an array of uploaded files, generating canvases dynamically.
  */
+export async function exportFoliage(dummyAlbedo, dummyNormal, dummyRoughness, dummyAo, dummyHeight, dummyMetallic, materialName, fileName, tresOnly = false, settings) {
+    const albedoName = `${fileName}_albedo.png`;
+    const normalName = `${fileName}_normal.png`;
+    const roughnessName = `${fileName}_roughness.png`;
+    const aoName = `${fileName}_ao.png`;
+    const heightName = `${fileName}_height.png`;
+    const metallicName = `${fileName}_metallic.png`;
+
+    const tresContent = generateFoliageTresFile(
+        materialName, albedoName,
+        settings.useNormal ? normalName : null,
+        settings.useRoughness ? roughnessName : null,
+        settings.useAO ? aoName : null,
+        settings.useHeight ? heightName : null,
+        settings.useMetallic ? metallicName : null,
+        settings
+    );
+
+    if (tresOnly) {
+        const blob = new Blob([tresContent], { type: 'text/plain' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `${materialName}_foliage.tres`;
+        a.click();
+    }
+}
+
+export async function exportBatchFoliage(uploadedFiles, settings) {
+    if (uploadedFiles.length === 0) return;
+
+    const zip = new JSZip();
+
+    for (let i = 0; i < uploadedFiles.length; i++) {
+        const item = uploadedFiles[i];
+
+        // We always generate 1x scale for actual exported textures
+        const albedoC = document.createElement('canvas');
+        processAlbedo(item.image, albedoC, settings.isSeamless, 1, settings.seamlessAlgorithm, settings.removeBg, settings.removeBgMode, settings.removeBgTolerance);
+
+        const normalC = document.createElement('canvas');
+        const roughnessC = document.createElement('canvas');
+        const aoC = document.createElement('canvas');
+        const heightC = document.createElement('canvas');
+        const metallicC = document.createElement('canvas');
+
+        if (settings.useNormal) generateNormalMap(albedoC, normalC, settings.normalStrength, settings.isSeamless, 1);
+        if (settings.useRoughness) generateRoughnessMap(albedoC, roughnessC, settings.roughnessStrength, settings.isSeamless, 1);
+        if (settings.useAO) generateAOMap(albedoC, aoC, settings.aoStrength, settings.isSeamless, 1);
+        if (settings.useHeight) generateHeightMap(albedoC, heightC, settings.heightStrength, settings.isSeamless, 1);
+        if (settings.useMetallic) generateMetallicMap(albedoC, metallicC, settings.metallicStrength, settings.isSeamless, 1);
+
+        const albedoName = `${item.name}_albedo.png`;
+        const normalName = `${item.name}_normal.png`;
+        const roughnessName = `${item.name}_roughness.png`;
+        const aoName = `${item.name}_ao.png`;
+        const heightName = `${item.name}_height.png`;
+        const metallicName = `${item.name}_metallic.png`;
+        const tresName = `${item.name}_foliage.tres`;
+
+        const folder = zip.folder(item.name);
+
+        // Helper to add canvas to zip
+        const addCanvasToZip = (canvas, filename) => {
+            return new Promise((resolve) => {
+                canvas.toBlob((blob) => {
+                    folder.file(filename, blob);
+                    resolve();
+                }, 'image/png');
+            });
+        };
+
+        const promises = [addCanvasToZip(albedoC, albedoName)];
+        if (settings.useNormal) promises.push(addCanvasToZip(normalC, normalName));
+        if (settings.useRoughness) promises.push(addCanvasToZip(roughnessC, roughnessName));
+        if (settings.useAO) promises.push(addCanvasToZip(aoC, aoName));
+        if (settings.useHeight) promises.push(addCanvasToZip(heightC, heightName));
+        if (settings.useMetallic) promises.push(addCanvasToZip(metallicC, metallicName));
+
+        await Promise.all(promises);
+
+        // Add .tres
+        const tresContent = generateFoliageTresFile(
+            item.name, albedoName,
+            settings.useNormal ? normalName : null,
+            settings.useRoughness ? roughnessName : null,
+            settings.useAO ? aoName : null,
+            settings.useHeight ? heightName : null,
+            settings.useMetallic ? metallicName : null,
+            settings
+        );
+        folder.file(tresName, tresContent);
+    }
+
+    const content = await zip.generateAsync({ type: 'blob' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(content);
+    a.download = `MaterialGen_Foliage_Export_${Date.now()}.zip`;
+    a.click();
+}
+
 export async function exportBatchMaterials(uploadedFiles, settings) {
     if (uploadedFiles.length === 0) return;
 
@@ -168,4 +311,87 @@ export async function exportBatchMaterials(uploadedFiles, settings) {
     link.download = uploadedFiles.length > 1 ? `${settings.baseName}_Batch.zip` : `${uploadedFiles[0].name}_pack.zip`;
     link.click();
     URL.revokeObjectURL(link.href);
+}
+
+function generateDecalTresFile(materialName, albedoName, normalName, settings) {
+    let extResources = `[ext_resource type="Texture2D" path="${albedoName}" id="1_albedo"]\n`;
+    let properties = `texture_albedo = ExtResource("1_albedo")\n`;
+    let loadSteps = 2; // decal + albedo
+
+    if (settings.useNormal && normalName) {
+        extResources += `[ext_resource type="Texture2D" path="${normalName}" id="2_normal"]\n`;
+        properties += `texture_normal = ExtResource("2_normal")\n`;
+        loadSteps++;
+    }
+
+    return `[gd_resource type="Decal" load_steps=${loadSteps} format=3]\n\n${extResources}\n[resource]\n${properties}`;
+}
+
+export async function exportDecals(dummyAlbedo, dummyNormal, dummyRoughness, dummyAo, dummyHeight, dummyMetallic, materialName, fileName, tresOnly = false, settings) {
+    const albedoName = `${fileName}_albedo.png`;
+    const normalName = `${fileName}_normal.png`;
+
+    const tresContent = generateDecalTresFile(
+        materialName, albedoName,
+        settings.useNormal ? normalName : null,
+        settings
+    );
+
+    if (tresOnly) {
+        const blob = new Blob([tresContent], { type: 'text/plain' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `${materialName}_decal.tres`;
+        a.click();
+    }
+}
+
+export async function exportBatchDecals(uploadedFiles, settings) {
+    if (uploadedFiles.length === 0) return;
+
+    const zip = new JSZip();
+
+    for (let i = 0; i < uploadedFiles.length; i++) {
+        const item = uploadedFiles[i];
+
+        const albedoC = document.createElement('canvas');
+        processAlbedo(item.image, albedoC, settings.isSeamless, 1, settings.seamlessAlgorithm, settings.removeBg, settings.removeBgMode, settings.removeBgTolerance);
+
+        const normalC = document.createElement('canvas');
+
+        if (settings.useNormal) generateNormalMap(albedoC, normalC, settings.normalStrength, settings.isSeamless, 1);
+
+        const albedoName = `${item.name}_albedo.png`;
+        const normalName = `${item.name}_normal.png`;
+        const tresName = `${item.name}_decal.tres`;
+
+        const folder = zip.folder(item.name);
+
+        const addCanvasToZip = (canvas, filename) => {
+            return new Promise((resolve) => {
+                canvas.toBlob((blob) => {
+                    folder.file(filename, blob);
+                    resolve();
+                }, 'image/png');
+            });
+        };
+
+        const promises = [addCanvasToZip(albedoC, albedoName)];
+        if (settings.useNormal) promises.push(addCanvasToZip(normalC, normalName));
+
+        await Promise.all(promises);
+
+        const tresContent = generateDecalTresFile(
+            item.name, albedoName,
+            settings.useNormal ? normalName : null,
+            settings
+        );
+        folder.file(tresName, tresContent);
+    }
+
+    const content = await zip.generateAsync({ type: 'blob' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(content);
+    a.download = `MaterialGen_Decals_Export_${Date.now()}.zip`;
+    a.click();
 }

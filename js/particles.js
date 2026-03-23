@@ -10,18 +10,79 @@ export function initParticles() {
     const previewImg = document.getElementById('particlePreviewImg');
     const hFramesInput = document.getElementById('hFrames');
     const vFramesInput = document.getElementById('vFrames');
-    const groqKeyInput = document.getElementById('groqApiKeyParticles');
-
     let uploadedFileName = 'particle_sprite.png';
     let uploadedFileBase64 = null;
     let generatedProcessMaterial = '';
     let generatedBillboardMaterial = '';
 
-    // Load API Key
-    groqKeyInput.value = localStorage.getItem('groqApiKey') || '';
-    groqKeyInput.addEventListener('input', (e) => {
-        localStorage.setItem('groqApiKey', e.target.value);
+    // 3D Preview Setup
+    const container = document.getElementById('viewer3d');
+    const viewer3dPlaceholder = document.getElementById('viewer3dPlaceholder');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x111111);
+
+    const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100);
+    camera.position.set(0, 1, 4);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    container.appendChild(renderer.domElement);
+
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+    scene.add(ambientLight);
+
+    // Ground plane
+    const groundGeometry = new THREE.PlaneGeometry(10, 10);
+    const groundMaterial = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.9 });
+    const groundMesh = new THREE.Mesh(groundGeometry, groundMaterial);
+    groundMesh.rotation.x = -Math.PI / 2;
+    groundMesh.position.y = -1;
+    scene.add(groundMesh);
+
+    // Particle Group
+    const particleGroup = new THREE.Group();
+    scene.add(particleGroup);
+
+    let particleMaterial = null;
+    const particleGeometry = new THREE.PlaneGeometry(1, 1);
+    let particleInstances = [];
+
+    // Simple orbiting
+    let isDragging = false;
+    let previousMousePosition = { x: 0, y: 0 };
+    container.addEventListener('mousedown', (e) => isDragging = true);
+    container.addEventListener('mousemove', (e) => {
+        if (isDragging) {
+            const deltaMove = { x: e.offsetX - previousMousePosition.x, y: e.offsetY - previousMousePosition.y };
+            scene.rotation.y += deltaMove.x * 0.01;
+            scene.rotation.x += deltaMove.y * 0.01;
+        }
+        previousMousePosition = { x: e.offsetX, y: e.offsetY };
     });
+    container.addEventListener('mouseup', () => isDragging = false);
+    container.addEventListener('mouseleave', () => isDragging = false);
+
+    function animate() {
+        requestAnimationFrame(animate);
+
+        // Simple particle simulation
+        particleInstances.forEach(p => {
+            p.position.add(p.userData.velocity);
+            p.material.opacity -= 0.015;
+
+            if (p.material.opacity <= 0) {
+                // Respawn
+                p.position.set((Math.random() - 0.5)*1, -1, (Math.random() - 0.5)*1);
+                p.material.opacity = 1;
+            }
+
+            // Billboard effect
+            p.quaternion.copy(camera.quaternion);
+        });
+
+        renderer.render(scene, camera);
+    }
+    animate();
 
     // File Upload Logic
     dropZone.addEventListener('click', () => fileInput.click());
@@ -77,9 +138,9 @@ ${props}`;
     }
 
     btnGenerate.addEventListener('click', async () => {
-        const apiKey = groqKeyInput.value.trim();
+        const apiKey = localStorage.getItem('groqApiKey');
         if (!apiKey) {
-            statusText.textContent = 'Error: Please enter a Groq API Key.';
+            statusText.textContent = 'Error: Please enter a Groq API Key in the Materials tab first.';
             statusText.style.color = 'var(--error-color, red)';
             return;
         }

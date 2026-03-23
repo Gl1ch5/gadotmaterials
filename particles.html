@@ -14,6 +14,7 @@
 <body>
 
     <header>
+        <div class="header-top-controls" style="position: absolute; top: 10px; right: 20px;"><select id="langSelect" style="padding: 5px; border-radius: 4px;"><option value="en">English</option><option value="ru">Русский</option></select></div>
         <div class="header-content">
             <svg class="logo" viewBox="0 0 24 24" width="32" height="32" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M12 2l9 4.9V17L12 22l-9-4.9V7z"/>
@@ -23,16 +24,16 @@
             </svg>
             <h1>MaterialGen for Godot</h1>
         </div>
-        <p class="subtitle">Generate ParticleProcessMaterial from 2D Sprites using AI.</p>
+        <p class="subtitle" data-i18n="subtitle">Generate ParticleProcessMaterial from 2D Sprites using AI.</p>
     </header>
     <main>
 
         <nav class="tabs-nav">
-            <a href="index.html" class="tab-btn " id="nav-materials" style="text-decoration: none; color: inherit;">Materials</a>
-            <a href="decals.html" class="tab-btn " id="nav-decals" style="text-decoration: none; color: inherit;">Decals</a>
-            <a href="foliage.html" class="tab-btn " id="nav-foliage" style="text-decoration: none; color: inherit;">Foliage</a>
-            <a href="particles.html" class="tab-btn active" id="nav-particles" style="text-decoration: none; color: inherit;">Particles</a>
-            <a href="shaders.html" class="tab-btn " id="nav-shaders" style="text-decoration: none; color: inherit;">Shaders</a>
+            <a href="index.html" class="tab-btn" data-i18n="nav-materials" " id="nav-materials" style="text-decoration: none; color: inherit;">Materials</a>
+            <a href="decals.html" class="tab-btn" data-i18n="nav-decals" " id="nav-decals" style="text-decoration: none; color: inherit;">Decals</a>
+            <a href="foliage.html" class="tab-btn" data-i18n="nav-foliage" " id="nav-foliage" style="text-decoration: none; color: inherit;">Foliage</a>
+            <a href="particles.html" class="tab-btn active" data-i18n="nav-particles" id="nav-particles" style="text-decoration: none; color: inherit;">Particles</a>
+            <a href="shaders.html" class="tab-btn" data-i18n="nav-shaders" " id="nav-shaders" style="text-decoration: none; color: inherit;">Shaders</a>
         </nav>
 
 <div id="particles" class="tab-content active" style="display: block;">
@@ -71,10 +72,6 @@
                         <label>3. AI Prompt (Effect Description)</label>
                         <textarea id="particlesPrompt" rows="4" style="width: 100%; margin-top: 0.5rem; padding: 0.5rem; border-radius: var(--radius); border: 1px solid var(--border-color); resize: vertical;" placeholder="e.g. A fast-moving stream of magical fire particles moving upwards with high gravity..."></textarea>
 
-                        <div style="margin-top: 1rem;">
-                            <label>Groq API Key (Required)</label>
-                            <input type="password" id="groqApiKeyParticles" placeholder="gsk_..." style="width: 100%; padding: 0.5rem; margin-top: 0.5rem;">
-                        </div>
                     </div>
 
                     <button id="btnGenerateParticles" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">Generate Particle Package (ZIP)</button>
@@ -83,8 +80,18 @@
 
                 <!-- Right Column: Results -->
                 <div class="panel preview-panel">
-                    <h2>Generated Particle Process Material (.tres)</h2>
-                    <textarea id="particlesOutput" style="width: 100%; height: 600px; padding: 1rem; border-radius: var(--radius); border: 1px solid var(--border-color); font-family: monospace; background: var(--bg-color); font-size: 0.85rem;" readonly placeholder="Generated Godot resource code will appear here..."></textarea>
+                    <div class="preview-3d-section">
+                        <div class="preview-3d-header">
+                            <h3>Interactive 3D Particle Preview</h3>
+                        </div>
+                        <div id="viewer3d" class="viewer-3d" style="height: 400px; background: #111; border-radius: 8px; overflow: hidden; position: relative; width: 100%;">
+                            <div id="viewer3dPlaceholder" class="placeholder" style="position: absolute; z-index: 10;">No sprite uploaded</div>
+                        </div>
+                    </div>
+                    <div style="margin-top: 1rem;">
+                        <h2>Generated Particle Process Material (.tres)</h2>
+                        <textarea id="particlesOutput" style="width: 100%; height: 200px; padding: 1rem; border-radius: var(--radius); border: 1px solid var(--border-color); font-family: monospace; background: var(--bg-color); font-size: 0.85rem;" readonly placeholder="Generated Godot resource code will appear here..."></textarea>
+                    </div>
                 </div>
             </div>
         </div>

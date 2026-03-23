@@ -14,6 +14,7 @@
 <body>
 
     <header>
+        <div class="header-top-controls" style="position: absolute; top: 10px; right: 20px;"><select id="langSelect" style="padding: 5px; border-radius: 4px;"><option value="en">English</option><option value="ru">Русский</option></select></div>
         <div class="header-content">
             <svg class="logo" viewBox="0 0 24 24" width="32" height="32" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M12 2l9 4.9V17L12 22l-9-4.9V7z"/>
@@ -23,16 +24,16 @@
             </svg>
             <h1>MaterialGen for Godot</h1>
         </div>
-        <p class="subtitle">Generate raw .gdshader code using AI.</p>
+        <p class="subtitle" data-i18n="subtitle">Generate raw .gdshader code using AI.</p>
     </header>
     <main>
 
         <nav class="tabs-nav">
-            <a href="index.html" class="tab-btn " id="nav-materials" style="text-decoration: none; color: inherit;">Materials</a>
-            <a href="decals.html" class="tab-btn " id="nav-decals" style="text-decoration: none; color: inherit;">Decals</a>
-            <a href="foliage.html" class="tab-btn " id="nav-foliage" style="text-decoration: none; color: inherit;">Foliage</a>
-            <a href="particles.html" class="tab-btn " id="nav-particles" style="text-decoration: none; color: inherit;">Particles</a>
-            <a href="shaders.html" class="tab-btn active" id="nav-shaders" style="text-decoration: none; color: inherit;">Shaders</a>
+            <a href="index.html" class="tab-btn" data-i18n="nav-materials" " id="nav-materials" style="text-decoration: none; color: inherit;">Materials</a>
+            <a href="decals.html" class="tab-btn" data-i18n="nav-decals" " id="nav-decals" style="text-decoration: none; color: inherit;">Decals</a>
+            <a href="foliage.html" class="tab-btn" data-i18n="nav-foliage" " id="nav-foliage" style="text-decoration: none; color: inherit;">Foliage</a>
+            <a href="particles.html" class="tab-btn" data-i18n="nav-particles" " id="nav-particles" style="text-decoration: none; color: inherit;">Particles</a>
+            <a href="shaders.html" class="tab-btn active" data-i18n="nav-shaders" id="nav-shaders" style="text-decoration: none; color: inherit;">Shaders</a>
         </nav>
 
 <div id="shaders" class="tab-content active" style="display: block;">

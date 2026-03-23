@@ -1,7 +1,7 @@
 import { initI18n } from "./i18n.js";
-// js/main.js
+// js/decals_page.js
 import { processAlbedo, generateNormalMap, generateRoughnessMap, generateAOMap, generateHeightMap, generateMetallicMap } from './imageUtils.js';
-import { exportMaterials, exportBatchMaterials } from './godotExporter.js';
+import { exportDecals, exportBatchDecals } from './godotExporter.js';
 
 // DOM Elements
 const dropzone = document.getElementById('dropzone');
@@ -68,6 +68,8 @@ import { init3DViewer, update3DMaterial } from './preview3d.js';
 
 // Setup Event Listeners
 function setupEventListeners() {
+    // For Decals, default geometry to wall
+    document.getElementById('geometrySelect').value = 'wall';
     // Dropzone events
     dropzone.addEventListener('click', () => fileInput.click());
 
@@ -153,7 +155,7 @@ function setupEventListeners() {
         btnDownloadZip.classList.add('btn-anim-primary');
 
         const settings = getSettings();
-        exportBatchMaterials(uploadedFiles, settings);
+        exportBatchDecals(uploadedFiles, settings);
     });
 
     btnDownloadCurrentTres.addEventListener('click', () => {
@@ -166,7 +168,7 @@ function setupEventListeners() {
 
         // Pass dummy empty objects or nulls, godotExporter only checks truthiness to omit logic for UI vs batch
         const s = getSettings();
-        exportMaterials(
+        exportDecals(
             null, null, null, null, null, null,
             matName, activeItem.name, true, s
         );
@@ -480,7 +482,8 @@ function updateTextures() {
         settings.useAO ? aoCanvas : null,
         settings.useHeight ? heightCanvas : null,
         settings.useMetallic ? metallicCanvas : null,
-        settings
+        settings,
+        true // true for decal mode
     );
 }
 
